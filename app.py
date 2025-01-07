@@ -244,11 +244,13 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
     
     try:
         st.info("1/6: Iniciando proceso de creación de video...")
+        logging.debug("1/6: Iniciando proceso de creación de video...")
         frases = [f.strip() + "." for f in texto.split('.') if f.strip()]
         client = texttospeech.TextToSpeechClient()
         
         # Agrupamos frases en segmentos
         st.info("2/6: Procesando texto...")
+        logging.debug("2/6: Procesando texto...")
         segmentos_texto = []
         segmento_actual = ""
         for frase in frases:
@@ -260,6 +262,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         segmentos_texto.append(segmento_actual.strip())
         
         st.info("3/6: Calculando duración total...")
+        logging.debug("3/6: Calculando duración total...")
         total_duration = 0
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
@@ -271,6 +274,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             for i, future in enumerate(futures):
                 try:
                     st.text(f"Procesando segmento de audio {i+1}/{len(segmentos_texto)}")
+                    logging.debug(f"Procesando segmento de audio {i+1}/{len(segmentos_texto)}")
                     response = future.result()
                 
                     temp_filename = f"temp_audio_duration_calc_{len(archivos_temp)}.mp3"
@@ -288,6 +292,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                 
         total_duration += SUBSCRIPTION_DURATION
         st.info(f"Duración total calculada: {total_duration:.2f} segundos")
+        logging.debug(f"Duración total calculada: {total_duration:.2f} segundos")
 
         # Lista para mantener los clips en orden de capas
         layer_clips = []
@@ -295,19 +300,23 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         # Capa 1: Video de fondo (si existe)
         if background_video:
             st.info("4/6: Procesando video de fondo...")
+            logging.debug("4/6: Procesando video de fondo...")
             st.text("Cargando video...")
             background_video_clip = create_video_background_clip(background_video, total_duration)
             if not background_video_clip:
                 return False, "Error al cargar el clip de video de fondo."
             layer_clips.append(background_video_clip.set_start(0))
             st.success("Video de fondo procesado")
+            logging.debug("Video de fondo procesado")
         
         st.info("5/6: Generando clips de audio y texto...")
+        logging.debug("5/6: Generando clips de audio y texto...")
         tiempo_acumulado = 0
         
         for i, segmento in enumerate(segmentos_texto):
             try:
                 st.text(f"Procesando segmento {i+1}/{len(segmentos_texto)}")
+                logging.debug(f"Procesando segmento {i+1}/{len(segmentos_texto)}")
                 response = synthesize_speech(client, segmento, voz)
             
                 temp_filename = f"temp_audio_{i}.mp3"
@@ -330,6 +339,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                         .set_position('center')
                         .set_audio(audio_clip))
                 
+                logging.debug(f"Clip de texto creado con inicio: {tiempo_acumulado}, duración: {duracion}")
                 layer_clips.append(txt_clip)
                 tiempo_acumulado += duracion
                 time.sleep(0.2)
@@ -348,15 +358,17 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         layer_clips.append(subscribe_clip)
         
         st.info("6/6: Renderizando video final...")
+        logging.debug("6/6: Renderizando video final...")
         video_final = CompositeVideoClip(layer_clips, size=VIDEO_SIZE)
         
+        # Verifica si estás usando el mismo proceso
         video_final.write_videofile(
             nombre_salida,
             fps=VIDEO_FPS,
             codec=VIDEO_CODEC,
             audio_codec=AUDIO_CODEC,
             preset=VIDEO_PRESET,
-            threads=VIDEO_THREADS
+            threads=1 if VIDEO_THREADS > 1 else VIDEO_THREADS
         )
         
         video_final.close()
