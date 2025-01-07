@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip, ColorClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -62,38 +62,67 @@ VOCES_DISPONIBLES = {
 
 def create_video_background_clip(video_path, duration):
     try:
+        # Cargar el video original
         video_clip = VideoFileClip(video_path)
-        # Oscurecer el video
-        video_clip = colorx(video_clip, 0.5)
+        original_duration = video_clip.duration
 
         # Redimensionar usando PIL para evitar problemas de ANTIALIAS
         def resize_frame(frame):
-            img = Image.fromarray(frame)
-            img.thumbnail(VIDEO_SIZE, Image.Resampling.LANCZOS)
-            new_img = Image.new('RGB', VIDEO_SIZE, (0,0,0))
-            new_img.paste(img, ((VIDEO_SIZE[0]-img.width)//2, (VIDEO_SIZE[1]-img.height)//2))
-            return np.array(new_img)
-        
+            try:
+                img = Image.fromarray(frame)
+                img.thumbnail(VIDEO_SIZE, Image.Resampling.LANCZOS)
+                new_img = Image.new('RGB', VIDEO_SIZE, (0,0,0))
+                new_img.paste(img, ((VIDEO_SIZE[0]-img.width)//2, (VIDEO_SIZE[1]-img.height)//2))
+                return np.array(new_img)
+            except Exception as e:
+                logging.error(f"Error en resize_frame: {str(e)}")
+                return np.zeros((VIDEO_SIZE[1], VIDEO_SIZE[0], 3), dtype=np.uint8)
+
+        # Procesar el video original primero
         video_clip = video_clip.fl_image(resize_frame)
-        
-        # Si el video es más corto que la duración requerida, crear un loop apropiado
-        if video_clip.duration < duration:
-            # Calculamos cuántas repeticiones necesitamos
-            n_repeats = int(np.ceil(duration / video_clip.duration))
-            # Creamos una lista de clips para concatenar
-            clips = [video_clip] * n_repeats
-            # Concatenamos los clips
-            video_clip = concatenate_videoclips(clips)
-            # Cortamos el video a la duración exacta que necesitamos
-            video_clip = video_clip.subclip(0, duration)
+        video_clip = colorx(video_clip, 0.5)  # Oscurecer el video
+
+        if original_duration < duration:
+            try:
+                # Crear un clip negro de la duración total
+                black_bg = ColorClip(size=VIDEO_SIZE, color=(0,0,0), duration=duration)
+                
+                # Calcular cuántas repeticiones completas necesitamos
+                n_repeats = int(duration // original_duration) + 1
+                
+                # Crear una lista de clips con tiempos de inicio específicos
+                final_clips = []
+                for i in range(n_repeats):
+                    start_time = i * original_duration
+                    if start_time < duration:
+                        clip_copy = video_clip.copy()
+                        clip_copy = clip_copy.set_start(start_time)
+                        # Asegurar que el clip no exceda la duración total
+                        remaining_duration = duration - start_time
+                        if remaining_duration < original_duration:
+                            clip_copy = clip_copy.subclip(0, remaining_duration)
+                        final_clips.append(clip_copy)
+
+                # Combinar todos los clips usando CompositeVideoClip
+                final_clips.insert(0, black_bg)  # Insertar el fondo negro como base
+                final_video = CompositeVideoClip(final_clips)
+                
+                # Asegurar la duración correcta
+                final_video = final_video.set_duration(duration)
+                
+                return final_video
+            except Exception as e:
+                logging.error(f"Error al crear video en loop: {str(e)}")
+                # En caso de error, retornar un video negro
+                return ColorClip(size=VIDEO_SIZE, color=(0,0,0), duration=duration)
         else:
-            # Si el video es más largo, solo tomamos la duración necesaria
-            video_clip = video_clip.subclip(0, duration)
-        
-        return video_clip
+            # Si el video es más largo que la duración necesaria, simplemente cortarlo
+            return video_clip.subclip(0, duration)
+
     except Exception as e:
         logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
-        return None
+        # En caso de error, retornar un video negro
+        return ColorClip(size=VIDEO_SIZE, color=(0,0,0), duration=duration)
     
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
