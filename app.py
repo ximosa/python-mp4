@@ -62,28 +62,24 @@ VOCES_DISPONIBLES = {
 
 def create_video_background_clip(video_path, duration):
   try:
-    video_clip = VideoFileClip(video_path).resize(VIDEO_SIZE).loop(duration = duration)
+    video_clip = VideoFileClip(video_path).resize(VIDEO_SIZE)
     # Oscurecer el video
     video_clip = colorx(video_clip, 0.5) # Reduce la luminosidad a la mitad
+    video_clip = video_clip.loop(duration = duration)
+
     return video_clip
   except Exception as e:
     logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
     return None
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
-                      bg_color="black", text_color="white", background_video=None,
+                      bg_color="black", text_color="white",
                       full_size_background=False):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
         size = VIDEO_SIZE
 
     img = Image.new('RGB', size, bg_color)
-
-    if background_video:
-        # No usar imagen de fondo directamente, sino un fondo de video
-        pass
-    else:
-        img = Image.new('RGB', size, bg_color) # Si no hay video de fondo, usar fondo negro
 
     draw = ImageDraw.Draw(img)
     try:
@@ -155,7 +151,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     return np.array(img)
     
 def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
-                 background_video, stretch_background):
+                 background_video):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -230,7 +226,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             
             text_img = create_text_image(segmento, font_size=font_size,
                                     bg_color=bg_color, text_color=text_color,
-                                    background_video=background_video,
                                     full_size_background=True)
             txt_clip = (ImageClip(text_img)
                       .set_start(tiempo_acumulado)
@@ -335,7 +330,7 @@ def main():
         bg_color = st.color_picker("Color de fondo", value="#000000")
         text_color = st.color_picker("Color de texto", value="#ffffff")
         background_video = st.file_uploader("Video de fondo (opcional)", type=["mp4", "avi", "mov"])
-        stretch_background = st.checkbox("Estirar imagen de fondo", value=False)
+
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
     
@@ -354,7 +349,7 @@ def main():
                     video_path = tmp_file.name
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        font_size, bg_color, text_color, video_path, stretch_background)
+                                                        font_size, bg_color, text_color, video_path)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
