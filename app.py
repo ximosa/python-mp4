@@ -11,6 +11,8 @@ import tempfile
 import requests
 from io import BytesIO
 from moviepy.video.fx.all import colorx
+from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -123,8 +125,8 @@ def create_video_background_clip(video_path, duration):
         logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
         # En caso de error, retornar un video negro
         return ColorClip(size=VIDEO_SIZE, color=(0,0,0), duration=duration)
-    
 
+@lru_cache(maxsize=32)
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white",
                       full_size_background=False):
@@ -168,7 +170,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         y += line_height
     return np.array(img)
 
-
+@lru_cache(maxsize=1)
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
     """Creates an image for the subscription message."""
     img = Image.new('RGB', size, (255, 0, 0))
@@ -203,6 +205,37 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
 
+def synthesize_speech(client, segmento, voz):
+    synthesis_input = texttospeech.SynthesisInput(text=segmento)
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="es-ES",
+        name=voz,
+        ssml_gender=VOCES_DISPONIBLES[voz]
+    )
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.MP3
+    )
+    
+    retry_count = 0
+    max_retries = 3
+      
+    while retry_count <= max_retries:
+        try:
+            response = client.synthesize_speech(
+                input=synthesis_input,
+                voice=voice,
+                audio_config=audio_config
+            )
+            return response
+        except Exception as e:
+            if "429" in str(e):
+                retry_count += 1
+                time.sleep(2**retry_count)
+            else:
+                raise
+    
+    raise Exception("Máximos intentos de reintento alcanzado")
+
 def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
                  background_video):
     archivos_temp = []
@@ -228,49 +261,31 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         st.info("3/6: Calculando duración total...")
         total_duration = 0
-        for i, segmento in enumerate(segmentos_texto):
-            synthesis_input = texttospeech.SynthesisInput(text=segmento)
-            voice = texttospeech.VoiceSelectionParams(
-                language_code="es-ES",
-                name=voz,
-                ssml_gender=VOCES_DISPONIBLES[voz]
-            )
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3
-            )
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for i, segmento in enumerate(segmentos_texto):
               
-            retry_count = 0
-            max_retries = 3
-              
-            while retry_count <= max_retries:
+                future = executor.submit(synthesize_speech, client, segmento, voz)
+                futures.append(future)
+                
+            for i, future in enumerate(futures):
                 try:
                     st.text(f"Procesando segmento de audio {i+1}/{len(segmentos_texto)}")
-                    response = client.synthesize_speech(
-                        input=synthesis_input,
-                        voice=voice,
-                        audio_config=audio_config
-                    )
-                    break
+                    response = future.result()
+                
+                    temp_filename = f"temp_audio_duration_calc_{len(archivos_temp)}.mp3"
+                    archivos_temp.append(temp_filename)
+                    with open(temp_filename, "wb") as out:
+                        out.write(response.audio_content)
+                    
+                    with AudioFileClip(temp_filename) as audio_clip_duration:
+                      total_duration += audio_clip_duration.duration
+                    time.sleep(0.2)
                 except Exception as e:
-                    if "429" in str(e):
-                        retry_count += 1
-                        time.sleep(2**retry_count)
-                    else:
-                        raise
+                    st.error(f"Error al generar audio: {str(e)}")
+                    logging.error(f"Error detallado en generación de audio: {str(e)}")
+                    return False, str(e)
                 
-            if retry_count > max_retries:
-                raise Exception("Máximos intentos de reintento alcanzado")
-            
-            temp_filename = f"temp_audio_duration_calc_{len(archivos_temp)}.mp3"
-            archivos_temp.append(temp_filename)
-            with open(temp_filename, "wb") as out:
-                out.write(response.audio_content)
-                
-            audio_clip_duration = AudioFileClip(temp_filename)
-            total_duration += audio_clip_duration.duration
-            audio_clip_duration.close()
-            time.sleep(0.2)
-
         total_duration += SUBSCRIPTION_DURATION
         st.info(f"Duración total calculada: {total_duration:.2f} segundos")
 
@@ -289,61 +304,39 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         st.info("5/6: Generando clips de audio y texto...")
         tiempo_acumulado = 0
+        
         for i, segmento in enumerate(segmentos_texto):
-            st.text(f"Procesando segmento {i+1}/{len(segmentos_texto)}")
-            synthesis_input = texttospeech.SynthesisInput(text=segmento)
-            voice = texttospeech.VoiceSelectionParams(
-                language_code="es-ES",
-                name=voz,
-                ssml_gender=VOCES_DISPONIBLES[voz]
-            )
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3
-            )
-          
-            retry_count = 0
-            max_retries = 3
-            while retry_count <= max_retries:
-                try:
-                    response = client.synthesize_speech(
-                        input=synthesis_input,
-                        voice=voice,
-                        audio_config=audio_config
-                    )
-                    break
-                except Exception as e:
-                    if "429" in str(e):
-                        retry_count +=1
-                        time.sleep(2**retry_count)
-                    else:
-                        raise
+            try:
+                st.text(f"Procesando segmento {i+1}/{len(segmentos_texto)}")
+                response = synthesize_speech(client, segmento, voz)
+            
+                temp_filename = f"temp_audio_{i}.mp3"
+                archivos_temp.append(temp_filename)
+                with open(temp_filename, "wb") as out:
+                    out.write(response.audio_content)
+            
+                audio_clip = AudioFileClip(temp_filename)
+                clips_audio.append(audio_clip)
+                duracion = audio_clip.duration
                 
-            if retry_count > max_retries:
-                raise Exception("Máximos intentos de reintento alcanzado")
-            
-            temp_filename = f"temp_audio_{i}.mp3"
-            archivos_temp.append(temp_filename)
-            with open(temp_filename, "wb") as out:
-                out.write(response.audio_content)
-            
-            audio_clip = AudioFileClip(temp_filename)
-            clips_audio.append(audio_clip)
-            duracion = audio_clip.duration
-            
-            # Crear clip de texto con fondo transparente
-            text_img = create_text_image(segmento, font_size=font_size,
-                                      bg_color=None,  # Fondo transparente
-                                      text_color=text_color,
-                                      full_size_background=True)
-            txt_clip = (ImageClip(text_img)
-                    .set_start(tiempo_acumulado)
-                    .set_duration(duracion)
-                    .set_position('center')
-                    .set_audio(audio_clip))
-            
-            layer_clips.append(txt_clip)
-            tiempo_acumulado += duracion
-            time.sleep(0.2)
+                # Crear clip de texto con fondo transparente
+                text_img = create_text_image(segmento, font_size=font_size,
+                                          bg_color=None,  # Fondo transparente
+                                          text_color=text_color,
+                                          full_size_background=True)
+                txt_clip = (ImageClip(text_img)
+                        .set_start(tiempo_acumulado)
+                        .set_duration(duracion)
+                        .set_position('center')
+                        .set_audio(audio_clip))
+                
+                layer_clips.append(txt_clip)
+                tiempo_acumulado += duracion
+                time.sleep(0.2)
+            except Exception as e:
+                st.error(f"Error al generar audio: {str(e)}")
+                logging.error(f"Error detallado en generación de audio: {str(e)}")
+                return False, str(e)
           
         # Capa superior: Clip de suscripción
         subscribe_img = create_subscription_image(logo_url)
@@ -359,11 +352,11 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         video_final.write_videofile(
             nombre_salida,
-            fps=24,
-            codec='libx264',
-            audio_codec='aac',
-            preset='ultrafast',
-            threads=4
+            fps=VIDEO_FPS,
+            codec=VIDEO_CODEC,
+            audio_codec=AUDIO_CODEC,
+            preset=VIDEO_PRESET,
+            threads=VIDEO_THREADS
         )
         
         video_final.close()
@@ -386,7 +379,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                 pass
           
         return True, "Video generado exitosamente"
-      
+    
     except Exception as e:
         st.error(f"Error en el proceso: {str(e)}")
         logging.error(f"Error detallado: {str(e)}")
@@ -404,25 +397,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             except:
                 pass
         return False, str(e)
-      
-    except Exception as e:
-        st.error(f"Error en el proceso: {str(e)}")
-        logging.error(f"Error detallado: {str(e)}")
-        for clip in clips_audio:
-            try:
-                clip.close()
-            except:
-                pass
-                
-        for temp_file in archivos_temp:
-            try:
-                if os.path.exists(temp_file):
-                    os.close(os.open(temp_file, os.O_RDONLY))
-                    os.remove(temp_file)
-            except:
-                pass
-        return False, str(e)
-
 
 def main():
     st.title("Creador de Videos Automático")
