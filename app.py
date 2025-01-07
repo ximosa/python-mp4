@@ -165,13 +165,12 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
     
-def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
+
+def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
                  background_video):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
-    
-    tiempo_acumulado = 0
     
     try:
       logging.info("Iniciando proceso de creación de video...")
@@ -244,8 +243,10 @@ def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
           background_video_clip = create_video_background_clip(background_video, total_duration)  # Duración máxima del clip de fondo
           if not background_video_clip:
               return False, "Error al cargar el clip de video de fondo."
+          
           clips_finales.append(background_video_clip.set_start(0))
         
+      tiempo_acumulado = 0
       for i, segmento in enumerate(segmentos_texto):
         logging.info(f"Procesando segmento {i+1} de {len(segmentos_texto)}")
             
@@ -258,7 +259,7 @@ def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
         audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3
         )
-        
+            
         retry_count = 0
         max_retries = 3
             
@@ -277,10 +278,10 @@ def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
                 time.sleep(2**retry_count)
               else:
                 raise
-            
+                
         if retry_count > max_retries:
             raise Exception("Maximos intentos de reintento alcanzado")
-            
+                
         temp_filename = f"temp_audio_{i}.mp3"
         archivos_temp.append(temp_filename)
         with open(temp_filename, "wb") as out:
@@ -291,8 +292,8 @@ def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
         duracion = audio_clip.duration
             
         text_img = create_text_image(segmento, font_size=font_size,
-                                  bg_color=bg_color, text_color=text_color,
-                                  full_size_background=True)
+                                    bg_color=bg_color, text_color=text_color,
+                                    full_size_background=True)
         txt_clip = (ImageClip(text_img)
                   .set_start(tiempo_acumulado)
                   .set_duration(duracion)
@@ -307,14 +308,45 @@ def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
         # Añadir clip de suscripción
       subscribe_img = create_subscription_image(logo_url) # Usamos la función creada
         
+
       subscribe_clip = (ImageClip(subscribe_img)
                       .set_start(tiempo_acumulado)
                       .set_duration(SUBSCRIPTION_DURATION)
                       .set_position('center'))
         
       clips_finales.append(subscribe_clip)
-      
-      return clips_finales, archivos_temp, clips_audio, background_video_clip if background_video else None
+        
+      video_final = concatenate_videoclips(clips_finales, method="compose")
+        
+      video_final.write_videofile(
+          nombre_salida,
+          fps=24,
+          codec='libx264',
+          audio_codec='aac',
+          preset='ultrafast',
+          threads=4
+      )
+        
+      video_final.close()
+        
+      if background_video:
+          background_video_clip.close()
+        
+      for clip in clips_audio:
+        clip.close()
+        
+      for clip in clips_finales:
+        clip.close()
+        
+      for temp_file in archivos_temp:
+          try:
+            if os.path.exists(temp_file):
+              os.close(os.open(temp_file, os.O_RDONLY))
+              os.remove(temp_file)
+          except:
+            pass
+        
+      return True, "Video generado exitosamente"
       
     except Exception as e:
       logging.error(f"Error: {str(e)}")
@@ -330,53 +362,7 @@ def create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
             os.close(os.open(temp_file, os.O_RDONLY))
             os.remove(temp_file)
         except:
-            pass
-      return False, str(e) ,None, None
-
-
-def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
-                 background_video):
-    
-    try:
-      clips_finales, archivos_temp, clips_audio, background_video_clip  = create_final_clips(texto, voz, logo_url, font_size, bg_color, text_color,
-                  background_video)
-      if not clips_finales:
-        return False, archivos_temp
-      
-      video_final = concatenate_videoclips(clips_finales, method="compose")
-      
-      video_final.write_videofile(
-          nombre_salida,
-          fps=24,
-          codec='libx264',
-          audio_codec='aac',
-          preset='ultrafast',
-          threads=4
-      )
-        
-      video_final.close()
-      
-      if background_video_clip:
-        background_video_clip.close()
-      
-      for clip in clips_audio:
-        clip.close()
-        
-      for clip in clips_finales:
-        clip.close()
-        
-      for temp_file in archivos_temp:
-        try:
-          if os.path.exists(temp_file):
-            os.close(os.open(temp_file, os.O_RDONLY))
-            os.remove(temp_file)
-        except:
           pass
-        
-      return True, "Video generado exitosamente"
-      
-    except Exception as e:
-      logging.error(f"Error: {str(e)}")
       return False, str(e)
 
 
