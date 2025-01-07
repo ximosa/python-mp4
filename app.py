@@ -76,10 +76,19 @@ def create_video_background_clip(video_path, duration):
         
         video_clip = video_clip.fl_image(resize_frame)
         
-        
+        # Si el video es más corto que la duración requerida, crear un loop apropiado
         if video_clip.duration < duration:
-          video_clip = video_clip.loop(duration = duration)
-          
+            # Calculamos cuántas repeticiones necesitamos
+            n_repeats = int(np.ceil(duration / video_clip.duration))
+            # Creamos una lista de clips para concatenar
+            clips = [video_clip] * n_repeats
+            # Concatenamos los clips
+            video_clip = concatenate_videoclips(clips)
+            # Cortamos el video a la duración exacta que necesitamos
+            video_clip = video_clip.subclip(0, duration)
+        else:
+            # Si el video es más largo, solo tomamos la duración necesaria
+            video_clip = video_clip.subclip(0, duration)
         
         return video_clip
     except Exception as e:
