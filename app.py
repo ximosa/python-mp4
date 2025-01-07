@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -243,8 +243,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             
             if background_video:
               background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion)
-              video_segment = background_clip_segment.set_audio(audio_clip.set_start(tiempo_acumulado))
-              video_segment = video_segment.blit(txt_clip, 'center')
+              video_segment = CompositeVideoClip([background_clip_segment,
+                                                   txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
+                                                   ])
             else:
               video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
 
@@ -265,7 +266,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         if background_video:
               background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion_subscribe)
-              subscribe_clip = background_clip_segment.blit(subscribe_clip, 'center')
+              subscribe_clip = CompositeVideoClip([background_clip_segment,subscribe_clip])
 
         clips_finales.append(subscribe_clip)
         
