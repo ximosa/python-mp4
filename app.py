@@ -65,7 +65,6 @@ def create_video_background_clip(video_path, duration):
         video_clip = VideoFileClip(video_path)
         # Oscurecer el video
         video_clip = colorx(video_clip, 0.5)
-        video_clip = video_clip.loop(duration=duration)
 
         # Redimensionar usando PIL para evitar problemas de ANTIALIAS
         def resize_frame(frame):
@@ -76,17 +75,17 @@ def create_video_background_clip(video_path, duration):
             return np.array(new_img)
         
         video_clip = video_clip.fl_image(resize_frame)
+        
+        
+        if video_clip.duration < duration:
+          video_clip = video_clip.loop(duration = duration)
+          
+        
         return video_clip
     except Exception as e:
         logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
         return None
     
-def calculate_subclip_times(start_time, clip_duration, total_duration):
-    """Calculates the start and end times for a subclip, ensuring the end time is within the total duration."""
-    end_time = start_time + clip_duration
-    if end_time > total_duration:
-        end_time = total_duration
-    return start_time, end_time
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white",
@@ -192,7 +191,57 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         # Cargar clip de video de fondo, si se especifica
         if background_video:
-            background_video_clip = create_video_background_clip(background_video, 60)  # Duración máxima del clip de fondo
+            
+            
+            
+            # Calcular la duracion total del video
+            total_duration = 0
+            for segmento in segmentos_texto:
+                synthesis_input = texttospeech.SynthesisInput(text=segmento)
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code="es-ES",
+                    name=voz,
+                    ssml_gender=VOCES_DISPONIBLES[voz]
+                )
+                audio_config = texttospeech.AudioConfig(
+                    audio_encoding=texttospeech.AudioEncoding.MP3
+                )
+                
+                retry_count = 0
+                max_retries = 3
+                
+                while retry_count <= max_retries:
+                  try:
+                    response = client.synthesize_speech(
+                        input=synthesis_input,
+                        voice=voice,
+                        audio_config=audio_config
+                    )
+                    break
+                  except Exception as e:
+                      logging.error(f"Error al solicitar audio (intento {retry_count + 1}): {str(e)}")
+                      if "429" in str(e):
+                        retry_count +=1
+                        time.sleep(2**retry_count)
+                      else:
+                        raise
+                
+                if retry_count > max_retries:
+                    raise Exception("Maximos intentos de reintento alcanzado")
+                    
+                temp_filename = f"temp_audio_duration_calc_{len(archivos_temp)}.mp3"
+                archivos_temp.append(temp_filename)
+                with open(temp_filename, "wb") as out:
+                    out.write(response.audio_content)
+                
+                audio_clip_duration = AudioFileClip(temp_filename)
+                total_duration += audio_clip_duration.duration
+                audio_clip_duration.close()
+                time.sleep(0.2)
+                
+            total_duration += SUBSCRIPTION_DURATION
+
+            background_video_clip = create_video_background_clip(background_video, total_duration)  # Duración máxima del clip de fondo
             if not background_video_clip:
                 return False, "Error al cargar el clip de video de fondo."
         
@@ -249,9 +298,8 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                       .set_position('center'))
             
             if background_video:
-                start_subclip_time, end_subclip_time = calculate_subclip_times(tiempo_acumulado, duracion, background_video_clip.duration)
-                background_clip_segment = background_video_clip.subclip(start_subclip_time, end_subclip_time)
-                video_segment = CompositeVideoClip([background_clip_segment,
+              background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion)
+              video_segment = CompositeVideoClip([background_clip_segment,
                                                    txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
                                                    ])
             else:
@@ -273,8 +321,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                         .set_position('center'))
         
         if background_video:
-            start_subclip_time, end_subclip_time = calculate_subclip_times(tiempo_acumulado, duracion_subscribe, background_video_clip.duration)
-            background_clip_segment = background_video_clip.subclip(start_subclip_time, end_subclip_time)
+            background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion_subscribe)
             subscribe_clip = CompositeVideoClip([background_clip_segment,subscribe_clip])
 
         clips_finales.append(subscribe_clip)
@@ -300,7 +347,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         for clip in clips_finales:
             clip.close()
-            
+        
         for temp_file in archivos_temp:
             try:
                 if os.path.exists(temp_file):
@@ -324,7 +371,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                 clip.close()
             except:
                 pass
-                
+        
         for temp_file in archivos_temp:
             try:
                 if os.path.exists(temp_file):
