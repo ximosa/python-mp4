@@ -80,6 +80,13 @@ def create_video_background_clip(video_path, duration):
     except Exception as e:
         logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
         return None
+    
+def calculate_subclip_times(start_time, clip_duration, total_duration):
+    """Calculates the start and end times for a subclip, ensuring the end time is within the total duration."""
+    end_time = start_time + clip_duration
+    if end_time > total_duration:
+        end_time = total_duration
+    return start_time, end_time
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white",
@@ -242,8 +249,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                       .set_position('center'))
             
             if background_video:
-              background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion)
-              video_segment = CompositeVideoClip([background_clip_segment,
+                start_subclip_time, end_subclip_time = calculate_subclip_times(tiempo_acumulado, duracion, background_video_clip.duration)
+                background_clip_segment = background_video_clip.subclip(start_subclip_time, end_subclip_time)
+                video_segment = CompositeVideoClip([background_clip_segment,
                                                    txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
                                                    ])
             else:
@@ -265,8 +273,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                         .set_position('center'))
         
         if background_video:
-              background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion_subscribe)
-              subscribe_clip = CompositeVideoClip([background_clip_segment,subscribe_clip])
+            start_subclip_time, end_subclip_time = calculate_subclip_times(tiempo_acumulado, duracion_subscribe, background_video_clip.duration)
+            background_clip_segment = background_video_clip.subclip(start_subclip_time, end_subclip_time)
+            subscribe_clip = CompositeVideoClip([background_clip_segment,subscribe_clip])
 
         clips_finales.append(subscribe_clip)
         
