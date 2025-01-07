@@ -245,6 +245,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             if not background_video_clip:
                 return False, "Error al cargar el clip de video de fondo."
         
+        if background_video:
+          clips_finales.append(background_video_clip.set_start(0))
+        
         for i, segmento in enumerate(segmentos_texto):
             logging.info(f"Procesando segmento {i+1} de {len(segmentos_texto)}")
             
@@ -297,15 +300,10 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                       .set_duration(duracion)
                       .set_position('center'))
             
-            if background_video:
-              video_segment = CompositeVideoClip([background_video_clip,
-                                                   txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
-                                                   ])
-            else:
-              video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
-
-
-            clips_finales.append(video_segment)
+            txt_clip = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
+            
+            
+            clips_finales.append(txt_clip)
             
             tiempo_acumulado += duracion
             time.sleep(0.2)
@@ -319,9 +317,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                         .set_duration(SUBSCRIPTION_DURATION)
                         .set_position('center'))
         
-        if background_video:
-          subscribe_clip = CompositeVideoClip([background_video_clip,subscribe_clip])
-
         clips_finales.append(subscribe_clip)
         
         video_final = concatenate_videoclips(clips_finales, method="compose")
