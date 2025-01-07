@@ -298,8 +298,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                       .set_position('center'))
             
             if background_video:
-              background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion)
-              video_segment = CompositeVideoClip([background_clip_segment,
+              video_segment = CompositeVideoClip([background_video_clip,
                                                    txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
                                                    ])
             else:
@@ -321,8 +320,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                         .set_position('center'))
         
         if background_video:
-            background_clip_segment = background_video_clip.subclip(tiempo_acumulado, tiempo_acumulado+duracion_subscribe)
-            subscribe_clip = CompositeVideoClip([background_clip_segment,subscribe_clip])
+          subscribe_clip = CompositeVideoClip([background_video_clip,subscribe_clip])
 
         clips_finales.append(subscribe_clip)
         
