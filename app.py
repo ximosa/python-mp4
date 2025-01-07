@@ -61,16 +61,25 @@ VOCES_DISPONIBLES = {
 }
 
 def create_video_background_clip(video_path, duration):
-  try:
-    video_clip = VideoFileClip(video_path).resize(VIDEO_SIZE, resample="lanczos")
-    # Oscurecer el video
-    video_clip = colorx(video_clip, 0.5) # Reduce la luminosidad a la mitad
-    video_clip = video_clip.loop(duration = duration)
+    try:
+        video_clip = VideoFileClip(video_path)
+        # Oscurecer el video
+        video_clip = colorx(video_clip, 0.5)
+        video_clip = video_clip.loop(duration=duration)
 
-    return video_clip
-  except Exception as e:
-    logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
-    return None
+        # Redimensionar usando PIL para evitar problemas de ANTIALIAS
+        def resize_frame(frame):
+            img = Image.fromarray(frame)
+            img.thumbnail(VIDEO_SIZE, Image.Resampling.LANCZOS)
+            new_img = Image.new('RGB', VIDEO_SIZE, (0,0,0))
+            new_img.paste(img, ((VIDEO_SIZE[0]-img.width)//2, (VIDEO_SIZE[1]-img.height)//2))
+            return np.array(new_img)
+        
+        video_clip = video_clip.fl_image(resize_frame)
+        return video_clip
+    except Exception as e:
+        logging.error(f"Error al cargar o procesar video de fondo: {str(e)}")
+        return None
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white",
