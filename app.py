@@ -62,7 +62,7 @@ VOCES_DISPONIBLES = {
 
 def create_video_background_clip(video_path, duration):
   try:
-    video_clip = VideoFileClip(video_path).resize(VIDEO_SIZE)
+    video_clip = VideoFileClip(video_path).resize(VIDEO_SIZE, resample="lanczos")
     # Oscurecer el video
     video_clip = colorx(video_clip, 0.5) # Reduce la luminosidad a la mitad
     video_clip = video_clip.loop(duration = duration)
