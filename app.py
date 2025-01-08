@@ -258,16 +258,21 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                                     video_duration=duracion)
             
             if isinstance(bg_content, VideoFileClip):
-              txt_clip = (ImageClip(create_text_image(segmento,
+                
+                mask_img = create_text_image(segmento,
                                     background_image=None,
-                                    stretch_background=stretch_background,
-                                    full_size_background=True))
-                    .set_start(tiempo_acumulado)
-                    .set_duration(duracion)
-                    .set_position('center'))
-              
-              bg_clip = bg_content.set_start(tiempo_acumulado).set_duration(duracion)
-              video_segment =  bg_clip.set_mask(txt_clip.to_mask())
+                                    stretch_background=False,
+                                    full_size_background=True,
+                                    bg_color=(0,0,0,0),
+                                    text_color=(255,255,255),
+                                    )
+
+                txt_clip = (ImageClip(mask_img)
+                      .set_start(tiempo_acumulado)
+                      .set_duration(duracion)
+                      .set_position('center'))
+                bg_clip = bg_content.set_start(tiempo_acumulado).set_duration(duracion)
+                video_segment =  bg_clip.set_mask(txt_clip.to_mask(True))
                 
             else:
               txt_clip = (ImageClip(bg_content)
