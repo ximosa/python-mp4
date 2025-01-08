@@ -137,8 +137,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
     
-def create_simple_video(texto, nombre_salida, voz, logo_url,
-                 background_media):
+def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, background_media):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -279,8 +278,8 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
         for temp_file in temp_video_backgrounds:
             try:
                 if os.path.exists(temp_file):
-                   os.close(os.open(temp_file, os.O_RDONLY))
-                   os.remove(temp_file)
+                    os.close(os.open(temp_file, os.O_RDONLY))
+                    os.remove(temp_file)
             except:
                 pass
                 
