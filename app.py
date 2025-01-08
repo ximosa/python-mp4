@@ -65,28 +65,37 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     """Creates a text image with the specified text and styles, supporting images and videos as background."""
     if full_size_background:
       size = VIDEO_SIZE
-
+    
+    img = Image.new('RGB', size, bg_color)
     if background_media:
         try:
-            if background_media.name.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):  # Check if it's a video
-                 # Handle video background
-                video_clip = VideoFileClip(background_media.name)
-                if stretch_background:
-                    video_clip = video_clip.resize(size)
-                else:
-                    video_clip = video_clip.resize(height=size[1])
-                    # Calculate position to center video
-                    x_center = (size[0] - video_clip.size[0]) // 2
-                    y_center = (size[1] - video_clip.size[1]) // 2
-                    
-                    
-                    video_frame = video_clip.get_frame(0)
-                    img = Image.fromarray(video_frame)
-                    new_img = Image.new('RGB', size, bg_color)
-                    new_img.paste(img, (x_center,y_center))
-                    img = new_img
-                
-            else:  # Handle image background
+            if isinstance(background_media, str) and background_media.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+              # Handle video background
+              video_clip = VideoFileClip(background_media)
+              if stretch_background:
+                  video_clip = video_clip.resize(size)
+              else:
+                  video_clip = video_clip.resize(height=size[1])
+                  # Calculate position to center video
+                  x_center = (size[0] - video_clip.size[0]) // 2
+                  y_center = (size[1] - video_clip.size[1]) // 2
+                  
+              # Get the frame at the middle to overlay the text
+              duration_mid = video_clip.duration / 2
+              
+              video_frame = video_clip.get_frame(duration_mid)
+              
+              img = Image.fromarray(video_frame).convert("RGB")
+              new_img = Image.new('RGB', size, bg_color)
+              new_img.paste(img, (x_center,y_center))
+              img = new_img
+              
+              # Video clips are handled separately now.
+              video_clip.close()
+              background_media = None #Avoid passing it to ImageClip in main
+              
+            else:
+              # Handle image background
                 img = Image.open(background_media).convert("RGB")
                 if stretch_background:
                     img = img.resize(size)
@@ -98,8 +107,6 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar imagen/video de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-    else:
-        img = Image.new('RGB', size, bg_color)
 
     draw = ImageDraw.Draw(img)
     try:
@@ -133,7 +140,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         x = (size[0] - (right - left)) // 2
         draw.text((x, y), line, font=font, fill=text_color)
         y += line_height
-    return np.array(img)
+    return np.array(img), background_media
 
 
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
@@ -238,11 +245,13 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
+            
+            img_text, video_background = None, None
             if background_media:
                 with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
                     tmp_file.write(background_media.read())
                     media_path = tmp_file.name
-                    text_img = create_text_image(segmento, font_size=font_size,
+                    img_text, video_background = create_text_image(segmento, font_size=font_size,
                                         bg_color=bg_color, text_color=text_color,
                                         background_media=media_path,
                                         stretch_background=stretch_background,
@@ -252,19 +261,36 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                     except:
                         pass
             else:
-              text_img = create_text_image(segmento, font_size=font_size,
+                img_text, video_background = create_text_image(segmento, font_size=font_size,
                                     bg_color=bg_color, text_color=text_color,
                                     background_media=None,
                                     stretch_background=stretch_background,
                                     full_size_background=True)
-
-            txt_clip = (ImageClip(text_img)
-                      .set_start(tiempo_acumulado)
-                      .set_duration(duracion)
-                      .set_position('center'))
             
-            video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
-            clips_finales.append(video_segment)
+            
+            if video_background:
+                
+                video_clip = VideoFileClip(video_background)
+                if stretch_background:
+                    video_clip = video_clip.resize(VIDEO_SIZE)
+                else:
+                    video_clip = video_clip.resize(height=VIDEO_SIZE[1])
+                    # Calculate position to center video
+                    x_center = (VIDEO_SIZE[0] - video_clip.size[0]) // 2
+                    y_center = (VIDEO_SIZE[1] - video_clip.size[1]) // 2
+                
+                
+                video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
+                video_clip = video_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
+                clips_finales.append(video_clip)
+            else:
+              txt_clip = (ImageClip(img_text)
+                        .set_start(tiempo_acumulado)
+                        .set_duration(duracion)
+                        .set_position('center'))
+              video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
+              clips_finales.append(video_segment)
+              
             
             tiempo_acumulado += duracion
             time.sleep(0.2)
