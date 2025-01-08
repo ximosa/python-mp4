@@ -15,7 +15,7 @@ from io import BytesIO
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 TEMP_DIR = tempfile.mkdtemp()
-FONT_PATH = "arial.ttf"  # Asegúrate de que la fuente esté disponible o súbela a tu proyecto
+FONT_PATH = "arial.ttf"
 DEFAULT_FONT_SIZE = 60
 VIDEO_SIZE = (1280, 720)
 TEXT_COLOR = "white"
@@ -192,6 +192,7 @@ class VideoGenerator:
 
             # Escribir el video en un archivo temporal
             with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmpfile:
+                logging.info(f"Escribiendo video temporal en: {tmpfile.name}") # Print para depurar
                 final_video.write_videofile(tmpfile.name, fps=24, codec=VIDEO_CODEC, audio_codec=AUDIO_CODEC, preset="ultrafast", threads=4)
                 st.success("Video generado exitosamente")
                 return tmpfile.name
@@ -202,7 +203,9 @@ class VideoGenerator:
             return None
 
         finally:
-            self._cleanup()
+            # self._cleanup()  # Comenta esta línea temporalmente para la depuración
+            # self.executor.shutdown() # Comenta o descomenta según corresponda.
+            pass
 
     def _generate_audio(self, text):
         """Genera el audio a partir del texto usando la API de Google."""
@@ -221,29 +224,28 @@ class VideoGenerator:
             audio_config=audio_config
         )
         temp_filename = os.path.join(TEMP_DIR, f"temp_audio_{len(self.audio_clips)}.mp3")
+        logging.info(f"Escribiendo audio temporal en: {temp_filename}") # Print para depurar
         with open(temp_filename, "wb") as out:
             out.write(response.audio_content)
         return temp_filename
 
     def _cleanup(self, video_final=None):
         """Limpia los archivos temporales y cierra los clips."""
-        for clip in self.video_clips:
-            try:
-                clip.close()
-            except Exception as e:
-                logging.error(f"Error al cerrar clip: {str(e)}")
-        for clip in self.audio_clips:
-            try:
-                clip.close()
-            except Exception as e:
-                logging.error(f"Error al cerrar clip: {str(e)}")
+        logging.info("Limpiando recursos...")
 
         if video_final:
             try:
                 video_final.close()
             except Exception as e:
                 logging.error(f"Error al cerrar video_final: {str(e)}")
-                
+        
+        for temp_file in self.temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            except Exception as e:
+                logging.error(f"Error al eliminar archivo temporal {temp_file}: {str(e)}")
+        
         gc.collect()
 
 # --- Interfaz de Streamlit ---
