@@ -8,12 +8,20 @@ from google.cloud import texttospeech
 from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, CompositeVideoClip, VideoFileClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+import tempfile
 import requests
 from io import BytesIO
 import concurrent.futures
 import gc
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Cargar credenciales de GCP desde secrets
+credentials = dict(st.secrets.gcp_service_account)
+with open("google_credentials.json", "w") as f:
+    json.dump(credentials, f)
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 
 # Constantes
 TEMP_DIR = "temp"
@@ -47,13 +55,6 @@ VOCES_DISPONIBLES = {
     'es-ES-Standard-B': texttospeech.SsmlVoiceGender.MALE,
     'es-ES-Standard-C': texttospeech.SsmlVoiceGender.FEMALE
 }
-
-# Cargar credenciales de GCP desde secrets
-credentials = dict(st.secrets.gcp_service_account)
-with open("google_credentials.json", "w") as f:
-    json.dump(credentials, f)
-
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 
 def create_text_overlay(text, size=(1280, 360), font_size=DEFAULT_FONT_SIZE, line_height=LINE_HEIGHT,
                       text_color=TEXT_COLOR, background_video=None,
@@ -279,11 +280,24 @@ def calculate_audio_duration(segment, voice, client, archivos_temp):
     audio_config = texttospeech.AudioConfig(
         audio_encoding=texttospeech.AudioEncoding.MP3
     )
-    response = client.synthesize_speech(
-        input=synthesis_input,
-        voice=voice_params,
-        audio_config=audio_config
-    )
+
+    retry_count = 0
+    max_retries = 3
+    while retry_count <= max_retries:
+        try:
+          response = client.synthesize_speech(
+                input=synthesis_input,
+                voice=voice_params,
+                audio_config=audio_config
+            )
+          break
+        except Exception as e:
+          logging.error(f"Error al solicitar audio (intento {retry_count + 1}): {str(e)}")
+          if "429" in str(e):
+            retry_count += 1
+            time.sleep(2**retry_count)
+          else:
+             raise
     temp_filename = os.path.join(TEMP_DIR, f"temp_duration_check.mp3")
     archivos_temp.append(temp_filename)
     with open(temp_filename, "wb") as out:
@@ -315,7 +329,6 @@ def process_audio(segment, index, voice, client, archivos_temp):
         audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3
         )
-
         retry_count = 0
         max_retries = 3
         while retry_count <= max_retries:
