@@ -182,25 +182,26 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
             
             # Manejar el clip de fondo
             if background_video_clip:
-                start_time = tiempo_acumulado % background_video_clip.duration
-                end_time = min(start_time + duracion, background_video_clip.duration)
-
-                background_segment = background_video_clip.subclip(start_time, end_time)
-                
-                if end_time < start_time + duracion:
-                  remaining_time = start_time + duracion - end_time
-                  background_segment_2 = background_video_clip.subclip(0, remaining_time)
-                  background_segment = concatenate_videoclips([background_segment,background_segment_2])
-
+              
+              
+              # Calcular el tiempo de inicio dentro del ciclo de video
+              start_time = (tiempo_acumulado % background_video_clip.duration)
+              
+              # Crear el subclip
+              background_segment = background_video_clip.subclip(start_time,min(start_time + duracion,background_video_clip.duration))
+              
+              # Si el clip es mas corto que la duracion del audio, lo repetimos
+              if background_segment.duration < duracion:
+                background_segment = background_segment.loop(duration = duracion)
             else:
-                background_segment = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=duracion)
+              background_segment = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=duracion)
 
             text_img = create_text_image(segmento)
             txt_clip = (ImageClip(text_img)
                       .set_start(0)
                       .set_duration(duracion)
                       .set_position('center'))
-
+            
             video_segment = CompositeVideoClip([background_segment, txt_clip]).set_audio(audio_clip.set_start(0))
             clips_finales.append(video_segment.set_start(tiempo_acumulado))
             
@@ -213,16 +214,10 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
         
         # Manejar el clip de fondo para el clip de suscripcion
         if background_video_clip:
-          start_time = tiempo_acumulado % background_video_clip.duration
-          end_time = min(start_time + duracion_subscribe, background_video_clip.duration)
-
-          background_subscribe_segment = background_video_clip.subclip(start_time, end_time)
-          
-          if end_time < start_time + duracion_subscribe:
-            remaining_time = start_time + duracion_subscribe - end_time
-            background_subscribe_segment_2 = background_video_clip.subclip(0, remaining_time)
-            background_subscribe_segment = concatenate_videoclips([background_subscribe_segment,background_subscribe_segment_2])
-
+            start_time = (tiempo_acumulado % background_video_clip.duration)
+            background_subscribe_segment = background_video_clip.subclip(start_time, min(start_time + duracion_subscribe, background_video_clip.duration))
+            if background_subscribe_segment.duration < duracion_subscribe:
+              background_subscribe_segment = background_subscribe_segment.loop(duration=duracion_subscribe)
         else:
             background_subscribe_segment = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=duracion_subscribe)
 
