@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -59,6 +59,7 @@ VOCES_DISPONIBLES = {
     'es-ES-Wavenet-F': texttospeech.SsmlVoiceGender.FEMALE,
 }
 
+
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white", background_media=None,
                       stretch_background=False, full_size_background=False):
@@ -71,40 +72,37 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     if background_media:
       try:
         if isinstance(background_media, str) and background_media.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
-          # Handle video background
-          video_clip = VideoFileClip(background_media)
-          if stretch_background:
-            video_clip = video_clip.resize(size)
-          else:
-            video_clip = video_clip.resize(height=size[1])
-            # Calculate position to center video
-            x_center = (size[0] - video_clip.size[0]) // 2
-            y_center = (size[1] - video_clip.size[1]) // 2
-          
-          # Get the frame at the middle to overlay the text
-          duration_mid = video_clip.duration / 2
-          video_frame = video_clip.get_frame(duration_mid)
-          
-          img = Image.fromarray(video_frame).convert("RGB")
-          new_img = Image.new('RGB', size, bg_color)
-          new_img.paste(img, (x_center,y_center))
-          img = new_img
-          
-          temp_video_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
-          video_clip.write_videofile(temp_video_file.name, codec="libx264", audio_codec='aac')
-          video_path = temp_video_file.name
-          video_clip.close()
-        
+            # Handle video background
+            video_clip = VideoFileClip(background_media)
+            if stretch_background:
+              video_clip = video_clip.resize(size)
+            else:
+              video_clip = video_clip.resize(height=size[1])
+              x_center = (size[0] - video_clip.size[0]) // 2
+              y_center = (size[1] - video_clip.size[1]) // 2
+            
+            duration_mid = video_clip.duration / 2
+            video_frame = video_clip.get_frame(duration_mid)
+            img = Image.fromarray(video_frame).convert("RGB")
+            new_img = Image.new('RGB', size, bg_color)
+            new_img.paste(img, (x_center,y_center))
+            img = new_img
+
+            temp_video_file = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+            video_clip.write_videofile(temp_video_file.name, codec="libx264", audio_codec='aac', threads=4)
+            video_path = temp_video_file.name
+            video_clip.close()
+            
         else:
-          # Handle image background
+            # Handle image background
             img = Image.open(background_media).convert("RGB")
             if stretch_background:
                 img = img.resize(size)
             else:
-              img.thumbnail(size)
-              new_img = Image.new('RGB', size, bg_color)
-              new_img.paste(img, ((size[0]-img.width)//2, (size[1]-img.height)//2))
-              img = new_img
+                img.thumbnail(size)
+                new_img = Image.new('RGB', size, bg_color)
+                new_img.paste(img, ((size[0]-img.width)//2, (size[1]-img.height)//2))
+                img = new_img
       except Exception as e:
           logging.error(f"Error al cargar imagen/video de fondo: {str(e)}, usando fondo {bg_color}.")
           img = Image.new('RGB', size, bg_color)
@@ -142,7 +140,6 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         draw.text((x, y), line, font=font, fill=text_color)
         y += line_height
     return np.array(img), video_path
-
 
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
     """Creates an image for the subscription message."""
@@ -249,54 +246,55 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             
             img_text, temp_video_path = None, None
             if background_media:
-              with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
-                tmp_file.write(background_media.read())
-                media_path = tmp_file.name
-                img_text, temp_video_path = create_text_image(segmento, font_size=font_size,
-                                      bg_color=bg_color, text_color=text_color,
-                                      background_media=media_path,
-                                      stretch_background=stretch_background,
-                                      full_size_background=True)
-                try:
-                  os.remove(media_path)
-                except:
-                   pass
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
+                  tmp_file.write(background_media.read())
+                  media_path = tmp_file.name
+                  img_text, temp_video_path = create_text_image(segmento, font_size=font_size,
+                                    bg_color=bg_color, text_color=text_color,
+                                    background_media=media_path,
+                                    stretch_background=stretch_background,
+                                    full_size_background=True)
+                  try:
+                     os.remove(media_path)
+                  except:
+                     pass
             else:
-              img_text, temp_video_path = create_text_image(segmento, font_size=font_size,
+                img_text, temp_video_path = create_text_image(segmento, font_size=font_size,
                                     bg_color=bg_color, text_color=text_color,
                                     background_media=None,
                                     stretch_background=stretch_background,
                                     full_size_background=True)
-            
-            
+
             if temp_video_path:
-                video_clip = VideoFileClip(temp_video_path)
+              video_clip = VideoFileClip(temp_video_path)
+              if stretch_background:
+                video_clip = video_clip.resize(VIDEO_SIZE)
+              else:
+                  video_clip = video_clip.resize(height=VIDEO_SIZE[1])
+              
+              
+              video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
+
+              text_clip = ImageClip(img_text).set_start(tiempo_acumulado).set_duration(duracion).set_position('center')
+              
+              final_clip = CompositeVideoClip([video_clip, text_clip.set_audio(audio_clip.set_start(tiempo_acumulado))])
                 
-                if stretch_background:
-                    video_clip = video_clip.resize(VIDEO_SIZE)
-                else:
-                    video_clip = video_clip.resize(height=VIDEO_SIZE[1])
-
-                video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
-                video_clip = video_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
-
-                clips_finales.append(video_clip)
-                temp_video_backgrounds.append(temp_video_path)
+              clips_finales.append(final_clip)
+              temp_video_backgrounds.append(temp_video_path)
             
             else:
               txt_clip = (ImageClip(img_text)
-                        .set_start(tiempo_acumulado)
-                        .set_duration(duracion)
-                        .set_position('center'))
+                      .set_start(tiempo_acumulado)
+                      .set_duration(duracion)
+                      .set_position('center'))
               video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
               clips_finales.append(video_segment)
-              
             
             tiempo_acumulado += duracion
             time.sleep(0.2)
 
         # Añadir clip de suscripción
-        subscribe_img = create_subscription_image(logo_url) # Usamos la función creada
+        subscribe_img = create_subscription_image(logo_url)
         duracion_subscribe = 5
 
         subscribe_clip = (ImageClip(subscribe_img)
@@ -334,9 +332,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                 pass
         for temp_file in temp_video_backgrounds:
             try:
-              if os.path.exists(temp_file):
-                 os.close(os.open(temp_file, os.O_RDONLY))
-                 os.remove(temp_file)
+                if os.path.exists(temp_file):
+                    os.close(os.open(temp_file, os.O_RDONLY))
+                    os.remove(temp_file)
             except:
                 pass
                 
@@ -366,9 +364,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         for temp_file in temp_video_backgrounds:
             try:
-              if os.path.exists(temp_file):
-                 os.close(os.open(temp_file, os.O_RDONLY))
-                 os.remove(temp_file)
+                if os.path.exists(temp_file):
+                    os.close(os.open(temp_file, os.O_RDONLY))
+                    os.remove(temp_file)
             except:
                 pass
         
