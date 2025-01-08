@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip, ColorClip, CompositeVideoClip
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -24,8 +24,6 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 TEMP_DIR = "temp"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Ajusta la ruta si es necesario
 DEFAULT_FONT_SIZE = 30
-DEFAULT_BG_COLOR = "black"
-DEFAULT_TEXT_COLOR = "white"
 #LINE_HEIGHT = 40 # Eliminamos LINE_HEIGHT como variable global
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
@@ -37,6 +35,8 @@ IMAGE_SIZE_SUBSCRIPTION = (1280, 720)
 SUBSCRIPTION_DURATION = 5
 LOGO_SIZE = (100, 100)
 VIDEO_SIZE = (1280, 720)  # Tamaño estándar del video
+DEFAULT_BG_COLOR = "black"
+DEFAULT_TEXT_COLOR = "white"
 
 # Configuración de voces
 VOCES_DISPONIBLES = {
@@ -154,32 +154,8 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
     
-def create_background_clip(background_path, size, duration):
-    """Crea un clip de video o de color a partir de una ruta"""
-    if background_path:
-        try:
-            if background_path.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-              # Es una imagen, carga la imagen
-                clip = ImageClip(background_path).set_duration(duration)
-                clip = clip.resize(size)
-                return clip
-            else:
-              # Es un video, carga el video y muestra el primer frame
-                clip = VideoFileClip(background_path)
-                first_frame = clip.get_frame(0)
-                clip.close()
-                clip = ImageClip(first_frame).set_duration(duration)
-                clip = clip.resize(size)
-                return clip
-
-        except Exception as e:
-          logging.error(f"Error al cargar el clip de fondo: {str(e)}")
-          return ColorClip(size, color=(0,0,0)).set_duration(duration)
-    else:
-      return ColorClip(size, color=(0,0,0)).set_duration(duration)
-
 def create_simple_video(texto, nombre_salida, voz, logo_url,
-                 background_file, stretch_background):
+                 background_image, stretch_background):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -246,22 +222,16 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
-            text_img = create_text_image(segmento, font_size=DEFAULT_FONT_SIZE,
-                                    bg_color=DEFAULT_BG_COLOR, text_color=DEFAULT_TEXT_COLOR,
+            text_img = create_text_image(segmento,
+                                    background_image=background_image,
+                                    stretch_background=stretch_background,
                                     full_size_background=True)
             txt_clip = (ImageClip(text_img)
                       .set_start(tiempo_acumulado)
                       .set_duration(duracion)
                       .set_position('center'))
             
-            background_clip = create_background_clip(background_file, VIDEO_SIZE, duracion)
-
-            # Combina el fondo con el texto
-            video_segment = CompositeVideoClip([
-                background_clip,
-                txt_clip.set_opacity(0.8)
-            ], size=VIDEO_SIZE).set_audio(audio_clip.set_start(tiempo_acumulado))
-
+            video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
             clips_finales.append(video_segment)
             
             tiempo_acumulado += duracion
@@ -277,10 +247,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                         .set_position('center'))
 
         clips_finales.append(subscribe_clip)
-        
-        if not clips_finales:
-            # Si no hay clips, crea un clip de fondo negro de 1 segundo
-            clips_finales = [ColorClip(VIDEO_SIZE, color=(0, 0, 0)).set_duration(1)]
         
         video_final = concatenate_videoclips(clips_finales, method="compose")
         
@@ -345,8 +311,9 @@ def main():
     with st.sidebar:
         st.header("Configuración del Video")
         voz_seleccionada = st.selectbox("Selecciona la voz", options=list(VOCES_DISPONIBLES.keys()))
-        background_file = st.file_uploader("Imagen o Video de fondo (opcional)", type=["png", "jpg", "jpeg", "webp", "mp4", "mov"])
+        background_image = st.file_uploader("Imagen de fondo (opcional)", type=["png", "jpg", "jpeg", "webp"])
         stretch_background = st.checkbox("Estirar imagen de fondo", value=False)
+
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
     
@@ -359,14 +326,14 @@ def main():
                 nombre_salida_completo = f"{nombre_salida}.mp4"
                 
                 
-                background_path = None
-                if background_file:
-                  with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_file.name)[1]) as tmp_file:
-                    tmp_file.write(background_file.read())
-                    background_path = tmp_file.name
+                img_path = None
+                if background_image:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_image.name)[1]) as tmp_file:
+                        tmp_file.write(background_image.read())
+                        img_path = tmp_file.name
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        background_path, stretch_background)
+                                                        img_path, stretch_background)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
@@ -374,12 +341,12 @@ def main():
                     st.download_button(label="Descargar video",data=file,file_name=nombre_salida_completo)
                     
                   st.session_state.video_path = nombre_salida_completo
-                  if background_path:
-                    os.remove(background_path)
+                  if img_path:
+                    os.remove(img_path)
                 else:
                   st.error(f"Error al generar video: {message}")
-                  if background_path:
-                    os.remove(background_path)
+                  if img_path:
+                    os.remove(img_path)
 
         if st.session_state.get("video_path"):
             st.markdown(f'<a href="https://www.youtube.com/upload" target="_blank">Subir video a YouTube</a>', unsafe_allow_html=True)
