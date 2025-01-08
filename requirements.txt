@@ -1,7 +1,7 @@
 streamlit
 google-cloud-texttospeech
 moviepy==1.0.3
-Pillow
+pillow==9.0.1
 numpy
 requests
 imageio-ffmpeg==0.4.9
