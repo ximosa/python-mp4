@@ -250,6 +250,8 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
+            logging.info(f"Duración del audio: {duracion} segundos")
+            
             bg_content = create_text_image(segmento,
                                     background_image=background_image,
                                     stretch_background=stretch_background,
@@ -258,7 +260,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                                     video_duration=duracion)
             
             if isinstance(bg_content, VideoFileClip):
-                
+                logging.info("Fondo de texto: Video")
                 mask_img = create_text_image(segmento,
                                     background_image=None,
                                     stretch_background=False,
@@ -266,24 +268,30 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                                     bg_color=(0,0,0,0),
                                     text_color=(255,255,255),
                                     )
-
+                logging.info("Máscara de texto creada")
                 txt_clip = (ImageClip(mask_img)
                       .set_start(tiempo_acumulado)
                       .set_duration(duracion)
                       .set_position('center'))
+                logging.info("Clip de máscara creado")
                 bg_clip = bg_content.set_start(tiempo_acumulado).set_duration(duracion)
+                logging.info("Clip de fondo creado")
                 video_segment =  bg_clip.set_mask(txt_clip.to_mask(True))
+                logging.info("Video de fondo aplicado con mascara")
                 
             else:
+              logging.info("Fondo de texto: Imagen")
               txt_clip = (ImageClip(bg_content)
                       .set_start(tiempo_acumulado)
                       .set_duration(duracion)
                       .set_position('center'))
+              logging.info("Clip de fondo creado")
               video_segment = txt_clip
               
             
             video_segment = video_segment.set_audio(audio_clip.set_start(tiempo_acumulado))
             clips_finales.append(video_segment)
+            logging.info("Video de texto generado y aplicado audio")
             
             tiempo_acumulado += duracion
             time.sleep(0.2)
