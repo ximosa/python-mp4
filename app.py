@@ -417,11 +417,7 @@ def main():
     # Selección de voz
     selected_voice = st.selectbox("Selecciona una voz:", list(VOCES_DISPONIBLES.keys()))
 
-    # Nombre del video (ya no se usa una carpeta de destino)
-    # video_name = st.text_input("Nombre del video (sin extensión):", "video_generado")
-
     # Opciones de Personalización
-    # Se elimina la selección del tamaño de la fuente
     st.session_state['stretch_background'] = st.checkbox("Estirar fondo", value=st.session_state['stretch_background'])
 
     # Crear la carpeta temp si no existe.
@@ -460,7 +456,7 @@ def main():
                 full_size_background=True,
                 bg_alpha=BG_ALPHA
             )
-            st.image(image_data, caption="Previsualización del texto", use_column_width=True)
+            st.image(image_data, caption="Previsualización del texto", use_container_width=True) # Usar use_container_width en lugar de use_column_width
 
             if bg_video:
                 bg_video.close()
