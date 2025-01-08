@@ -244,12 +244,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
                 tmp_file.write(background_video.read())
                 video_fondo = VideoFileClip(tmp_file.name)
-                try:
-                    video_fondo = video_fondo.subclip(0, max(video_final.duration, video_fondo.duration))
-                except AttributeError:
-                    logging.error("El video de fondo no tiene duración válida.")
-                    st.error("El video de fondo tiene un formato inválido o no se pudo leer.")
-                    return False, "Error en la lectura del video de fondo"
                 video_final = CompositeVideoClip([video_fondo, video_final.set_position('center')])
                 os.remove(tmp_file.name)
 
