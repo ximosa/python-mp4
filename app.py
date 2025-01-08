@@ -126,7 +126,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
         response = requests.get(logo_url)
         response.raise_for_status()
         logo_img = Image.open(BytesIO(response.content)).convert("RGBA")
-        logo_img = logo_img.resize(LOGO_SIZE)
+        logo_img = logo_img.resize(LOGO_SIZE)  # Quitamos ANTIALIAS
         logo_position = (20, 20)
         img.paste(logo_img, logo_position, logo_img)
     except Exception as e:
