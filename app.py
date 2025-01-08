@@ -71,31 +71,37 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     
     if background_video:
       
-      try:
-        video_clip = VideoFileClip(background_video)
+        try:
+            logging.info(f"Intentando cargar video de fondo: {background_video}")
+            video_clip = VideoFileClip(background_video)
+            logging.info(f"Video de fondo cargado exitosamente: {video_clip.filename}")
+
+            if stretch_background:
+                video_clip = video_clip.resize(size)
+                logging.info(f"Video de fondo redimensionado a: {size}")
+            else:
+                video_clip = video_clip.resize(width=size[0])
+                video_clip = video_clip.set_position("center")
+                logging.info(f"Video de fondo redimensionado a ancho: {size[0]} y centrado")
         
-        if stretch_background:
-          video_clip = video_clip.resize(size)
-        else:
-           video_clip = video_clip.resize(width=size[0])
-           video_clip = video_clip.set_position("center")
+            duration = video_clip.duration
         
-        duration = video_clip.duration
+            if duration > video_duration:
+                video_clip = video_clip.subclip(0, video_duration)
+                logging.info(f"Video de fondo recortado a: {video_duration} segundos")
         
-        if duration > video_duration:
-          video_clip = video_clip.subclip(0, video_duration)
+            if duration < video_duration:
+                repetitions = int(video_duration / duration) + 1
+                clips = [video_clip] * repetitions
+                video_clip = concatenate_videoclips(clips).subclip(0, video_duration)
+                logging.info(f"Video de fondo repetido y recortado a: {video_duration} segundos")
         
-        if duration < video_duration:
-            repetitions = int(video_duration / duration) + 1
-            clips = [video_clip] * repetitions
-            video_clip = concatenate_videoclips(clips).subclip(0, video_duration)
-            
+            return video_clip
         
-        return video_clip
-        
-      except Exception as e:
+        except Exception as e:
             logging.error(f"Error al cargar video de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
+            return img
     
     elif background_image:
         try:
@@ -110,43 +116,12 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
+        return img
     else:
         img = Image.new('RGB', size, bg_color)
+        return img
 
-    draw = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype(FONT_PATH, font_size)
-    except Exception as e:
-        logging.error(f"Error al cargar la fuente, usando la fuente predeterminada: {str(e)}")
-        font = ImageFont.load_default()
     
-    # Calculamos la altura de línea en función del tamaño de la fuente.
-    line_height = font_size * 1.5  # Aumentamos el factor a 1.5
-
-    words = text.split()
-    lines = []
-    current_line = []
-
-    for word in words:
-        current_line.append(word)
-        test_line = ' '.join(current_line)
-        left, top, right, bottom = draw.textbbox((0, 0), test_line, font=font)
-        if right > size[0] - 60:
-            current_line.pop()
-            lines.append(' '.join(current_line))
-            current_line = [word]
-    lines.append(' '.join(current_line))
-
-    total_height = len(lines) * line_height
-    y = (size[1] - total_height) // 2
-
-    for line in lines:
-        left, top, right, bottom = draw.textbbox((0, 0), line, font=font)
-        x = (size[0] - (right - left)) // 2
-        draw.text((x, y), line, font=font, fill=text_color)
-        y += line_height
-    return np.array(img)
-
 
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
     """Creates an image for the subscription message."""
@@ -262,28 +237,39 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
             if isinstance(bg_content, VideoFileClip):
                 logging.info("Fondo de texto: Video")
                 try:
-                  mask_img = create_text_image(segmento,
-                                      background_image=None,
-                                      stretch_background=False,
-                                      full_size_background=True,
-                                      bg_color=(0,0,0,0),
-                                      text_color=(255,255,255),
-                                      )
-                  logging.info("Máscara de texto creada")
-                  txt_clip = (ImageClip(mask_img)
-                        .set_start(tiempo_acumulado)
-                        .set_duration(duracion)
-                        .set_position('center'))
-                  logging.info("Clip de máscara creado")
-                  bg_clip = bg_content.set_start(tiempo_acumulado).set_duration(duracion)
-                  logging.info("Clip de fondo creado")
-                  video_segment =  bg_clip.set_mask(txt_clip.to_mask(True))
-                  logging.info("Video de fondo aplicado con mascara")
-                  
+                    mask_img = create_text_image(segmento,
+                                        background_image=None,
+                                        stretch_background=False,
+                                        full_size_background=True,
+                                        bg_color=(0,0,0,0),
+                                        text_color=(255,255,255),
+                                        )
+                    logging.info("Máscara de texto creada")
+                    txt_clip = (ImageClip(mask_img)
+                                .set_start(tiempo_acumulado)
+                                .set_duration(duracion)
+                                .set_position('center'))
+                    logging.info("Clip de máscara creado")
+                    bg_clip = bg_content.set_start(tiempo_acumulado).set_duration(duracion)
+                    logging.info("Clip de fondo creado")
+                    
+                    # Ajustar para usar la máscara solo si es un clip de video
+                    video_segment = bg_clip.set_mask(txt_clip.to_mask(True))
+                    logging.info("Video de fondo aplicado con máscara")
                 except Exception as e:
-                    logging.error(f"Error al crear máscara o aplicar al video: {str(e)}")
-                    continue
-            
+                   logging.error(f"Error al crear máscara o aplicar al video: {str(e)}")
+                   
+                   txt_clip = (ImageClip(create_text_image(segmento,
+                                        background_image=None,
+                                        stretch_background=False,
+                                        full_size_background=True,
+                                        text_color=(255,255,255),
+                                        ))
+                                .set_start(tiempo_acumulado)
+                                .set_duration(duracion)
+                                .set_position('center'))
+                   video_segment =  bg_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
+
             else:
               logging.info("Fondo de texto: Imagen")
               txt_clip = (ImageClip(bg_content)
