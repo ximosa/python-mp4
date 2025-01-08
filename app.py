@@ -185,7 +185,7 @@ def create_simple_video(
         segmentos_texto = []
         segmento_actual = ""
         for frase in frases:
-            if len(segmento_actual) + len(frase) < 300:
+            if len(segmento_actual) + len(frase) < 500:
                 segmento_actual += " " + frase
             else:
                 segmentos_texto.append(segmento_actual.strip())
