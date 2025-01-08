@@ -213,18 +213,17 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             
             if background_video:
                 bg_clip = VideoFileClip(background_video)
-                if stretch_background:
-                    bg_clip = bg_clip.resize(VIDEO_SIZE)
+                bg_clip = bg_clip.resize(VIDEO_SIZE)  # Siempre redimensionamos al tamaño completo
                 
                 # Añadimos un efecto de oscurecimiento al video
-                bg_clip = bg_clip.set_opacity(0.5)  # Reducimos la opacidad del video
+                bg_clip = bg_clip.set_opacity(0.5)
                 
                 # Creamos una capa negra semitransparente
                 black_clip = ColorClip(size=VIDEO_SIZE, color=(0,0,0))
                 black_clip = black_clip.set_opacity(0.5)
                 black_clip = black_clip.set_duration(duracion)
                 
-                # Componemos las capas: video oscurecido + capa negra + texto
+                # Componemos las capas
                 bg_clip = bg_clip.loop(duration=duracion)
                 
                 text_img = create_text_image(segmento, font_size=font_size,
