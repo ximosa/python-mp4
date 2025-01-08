@@ -24,7 +24,6 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 TEMP_DIR = "temp"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Ajusta la ruta si es necesario
 DEFAULT_FONT_SIZE = 30
-#LINE_HEIGHT = 40 # Eliminamos LINE_HEIGHT como variable global
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
 AUDIO_CODEC = 'aac'
@@ -65,7 +64,7 @@ VOCES_DISPONIBLES = {
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE, full_size_background=False):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
-        size = VIDEO_SIZE
+      size = VIDEO_SIZE
 
     img = Image.new('RGBA', size, TEXT_BG_COLOR)
     draw = ImageDraw.Draw(img)
@@ -137,7 +136,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
     
-def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, background_media):
+def create_simple_video(texto, nombre_salida, voz, logo_url, background_media):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -218,18 +217,18 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, backgrou
                           video_clip = video_clip.resize(height=VIDEO_SIZE[1])
                           video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
                           clips_finales.append(video_clip)
+                          
                       else:
                           img_clip = ImageClip(media_path).set_start(tiempo_acumulado).set_duration(duracion).set_position('center')
                           clips_finales.append(img_clip)
 
                       temp_video_backgrounds.append(media_path)
                       clips_finales.append(text_clip)
-
                   except Exception as e:
                       logging.error(f"Error al procesar video o imagen de fondo: {str(e)}")
                       clips_finales.append(text_clip)
                   try:
-                      os.remove(media_path)
+                     os.remove(media_path)
                   except:
                       pass
             else:
@@ -278,8 +277,8 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, backgrou
         for temp_file in temp_video_backgrounds:
             try:
                 if os.path.exists(temp_file):
-                    os.close(os.open(temp_file, os.O_RDONLY))
-                    os.remove(temp_file)
+                   os.close(os.open(temp_file, os.O_RDONLY))
+                   os.remove(temp_file)
             except:
                 pass
                 
@@ -317,6 +316,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, backgrou
         
         return False, str(e)
 
+
 def main():
     st.title("Creador de Videos Automático")
     
@@ -338,7 +338,7 @@ def main():
             with st.spinner('Generando video...'):
                 nombre_salida_completo = f"{nombre_salida}.mp4"
                 
-                success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url, DEFAULT_FONT_SIZE, background_media)
+                success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url, background_media)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
