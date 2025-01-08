@@ -4,8 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip
-from PIL import Image, ImageDraw, ImageFont
+from moviepy.editor import AudioFileClip, ImageClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip, ColorClipfrom PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
 import requests
@@ -212,8 +211,18 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             
             if background_video:
                 bg_clip = VideoFileClip(background_video)
-                bg_clip = bg_clip.resize(VIDEO_SIZE)
+                if stretch_background:
+                    bg_clip = bg_clip.resize(VIDEO_SIZE)
                 
+                # Añadimos un efecto de oscurecimiento al video
+                bg_clip = bg_clip.set_opacity(0.5)  # Reducimos la opacidad del video
+                
+                # Creamos una capa negra semitransparente
+                black_clip = ColorClip(size=VIDEO_SIZE, color=(0,0,0))
+                black_clip = black_clip.set_opacity(0.5)
+                black_clip = black_clip.set_duration(duracion)
+                
+                # Componemos las capas: video oscurecido + capa negra + texto
                 bg_clip = bg_clip.loop(duration=duracion)
                 
                 text_img = create_text_image(segmento, font_size=font_size,
@@ -222,7 +231,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                           .set_duration(duracion)
                           .set_position('center'))
                 
-                video_segment = CompositeVideoClip([bg_clip, txt_clip])
+                video_segment = CompositeVideoClip([bg_clip, black_clip, txt_clip])
                 video_segment = video_segment.set_audio(audio_clip.set_start(tiempo_acumulado))
             else:
                 text_img = create_text_image(segmento, font_size=font_size,
