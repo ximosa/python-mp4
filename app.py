@@ -351,7 +351,7 @@ def main():
                         video_path = tmp_file.name
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                     font_size, bg_color, text_color, video_path, img_path, stretch_background)
+                                                     font_size, bg_color, text_color, video_path, img_path)
                 
                 if success:
                     st.success(message)
@@ -374,6 +374,7 @@ def main():
 
         if st.session_state.get("video_path"):
             st.markdown(f'<a href="https://www.youtube.com/upload" target="_blank">Subir video a YouTube</a>', unsafe_allow_html=True)
+
 
 if __name__ == "__main__":
     if "video_path" not in st.session_state:
