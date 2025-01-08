@@ -71,7 +71,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     if background_image:
         try:
             img = Image.open(background_image).convert("RGB")
-            img = img.resize(size, Image.Resampling.LANCZOS)  # Usando el nuevo método
+            img = img.resize(size)  # Método simple de redimensionamiento
         except Exception as e:
             logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
