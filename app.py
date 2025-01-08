@@ -60,7 +60,7 @@ VOCES_DISPONIBLES = {
 }
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white", background_video=None,
-                      background_image=None, stretch_background=False, full_size_background=False):
+                      background_image=None, full_size_background=False):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
         size = VIDEO_SIZE
@@ -68,17 +68,16 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     if background_video:
         return None  # Retornamos None para indicar que usaremos video de fondo
         
-   if background_image:
-    try:
-        img = Image.open(background_image).convert("RGB")
-        img = img.resize(size)  # Siempre redimensionamos al tamaño completo
-        
-    except Exception as e:
-        logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
-        img = Image.new('RGB', size, bg_color)
-
+    if background_image:
+        try:
+            img = Image.open(background_image).convert("RGB")
+            img = img.resize(size)  # Siempre redimensionamos al tamaño completo
+        except Exception as e:
+            logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
+            img = Image.new('RGB', size, bg_color)
     else:
         img = Image.new('RGB', size, bg_color)
+
 
     draw = ImageDraw.Draw(img)
     try:
