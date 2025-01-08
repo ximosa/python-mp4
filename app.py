@@ -34,6 +34,9 @@ IMAGE_SIZE_SUBSCRIPTION = (1280, 720)
 SUBSCRIPTION_DURATION = 5
 LOGO_SIZE = (100, 100)
 VIDEO_SIZE = (1280, 720)  # Tamaño estándar del video
+TEXT_BG_COLOR = (0, 0, 0, 128)  # Negro con 50% de transparencia
+TEXT_COLOR = "white"
+
 
 # Configuración de voces
 VOCES_DISPONIBLES = {
@@ -59,20 +62,19 @@ VOCES_DISPONIBLES = {
     'es-ES-Wavenet-F': texttospeech.SsmlVoiceGender.FEMALE,
 }
 
-def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
-                      bg_color="black", text_color="white", full_size_background=False):
+def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE, full_size_background=False):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
       size = VIDEO_SIZE
-      
-    img = Image.new('RGB', size, bg_color)
+
+    img = Image.new('RGBA', size, TEXT_BG_COLOR)
     draw = ImageDraw.Draw(img)
     try:
         font = ImageFont.truetype(FONT_PATH, font_size)
     except Exception as e:
         logging.error(f"Error al cargar la fuente, usando la fuente predeterminada: {str(e)}")
         font = ImageFont.load_default()
-    
+
     # Calculamos la altura de línea en función del tamaño de la fuente.
     line_height = font_size * 1.5  # Aumentamos el factor a 1.5
 
@@ -96,7 +98,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     for line in lines:
         left, top, right, bottom = draw.textbbox((0, 0), line, font=font)
         x = (size[0] - (right - left)) // 2
-        draw.text((x, y), line, font=font, fill=text_color)
+        draw.text((x, y), line, font=font, fill=TEXT_COLOR)
         y += line_height
     return np.array(img)
 
@@ -135,8 +137,8 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
     
-def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
-                 background_media, stretch_background):
+def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
+                 background_media):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -204,8 +206,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
-            img_text = create_text_image(segmento, font_size=font_size,
-                                    bg_color=bg_color, text_color=text_color, full_size_background=True)
+            img_text = create_text_image(segmento, font_size=font_size, full_size_background=True)
             text_clip = ImageClip(img_text).set_start(tiempo_acumulado).set_duration(duracion).set_position('center').set_audio(audio_clip.set_start(tiempo_acumulado))
 
             if background_media:
@@ -218,14 +219,12 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                           video_clip = video_clip.resize(height=VIDEO_SIZE[1])
                           video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
                           clips_finales.append(video_clip)
+                          clips_finales.append(text_clip)
                           
-                      
                       else:
                           img_clip = ImageClip(media_path).set_start(tiempo_acumulado).set_duration(duracion).set_position('center')
                           clips_finales.append(img_clip)
-                          
-                      
-                      clips_finales.append(text_clip)
+                          clips_finales.append(text_clip)
                       
                       temp_video_backgrounds.append(media_path)
                   except Exception as e:
@@ -331,8 +330,6 @@ def main():
         st.header("Configuración del Video")
         voz_seleccionada = st.selectbox("Selecciona la voz", options=list(VOCES_DISPONIBLES.keys()))
         font_size = st.slider("Tamaño de la fuente", min_value=10, max_value=100, value=DEFAULT_FONT_SIZE)
-        bg_color = st.color_picker("Color de fondo", value="#000000")
-        text_color = st.color_picker("Color de texto", value="#ffffff")
         background_media = st.file_uploader("Imagen o video de fondo (opcional)", type=["png", "jpg", "jpeg", "webp", "mp4", "mov", "avi", "mkv"])
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
@@ -348,7 +345,7 @@ def main():
                 
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        font_size, bg_color, text_color, background_media, False)
+                                                        font_size, background_media)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
