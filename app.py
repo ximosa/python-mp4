@@ -24,7 +24,6 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 TEMP_DIR = "temp"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Ajusta la ruta si es necesario
 DEFAULT_FONT_SIZE = 30
-#LINE_HEIGHT = 40 # Eliminamos LINE_HEIGHT como variable global
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
 AUDIO_CODEC = 'aac'
@@ -240,9 +239,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                                         full_size_background=True,
                                         bg_color=(0,0,0,0),
                                         text_color=(255,255,255),
-                                        )
+                                        video_duration=duracion)
                     logging.info("Máscara de texto creada")
-                    txt_clip = (ImageClip(mask_img)
+                    txt_clip = (ImageClip(mask_img.img)
                                 .set_start(tiempo_acumulado)
                                 .set_duration(duracion)
                                 .set_position('center'))
@@ -261,7 +260,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                                         stretch_background=False,
                                         full_size_background=True,
                                         text_color=(255,255,255),
-                                        ))
+                                        video_duration=duracion).img)
                                 .set_start(tiempo_acumulado)
                                 .set_duration(duracion)
                                 .set_position('center'))
@@ -269,7 +268,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
 
             else:
               logging.info("Fondo de texto: Imagen")
-              txt_clip = (ImageClip(bg_content)
+              txt_clip = (bg_content
                       .set_start(tiempo_acumulado)
                       .set_duration(duracion)
                       .set_position('center'))
