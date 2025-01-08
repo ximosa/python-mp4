@@ -66,27 +66,18 @@ VOCES_DISPONIBLES = {
     'es-ES-Wavenet-F': texttospeech.SsmlVoiceGender.FEMALE,
 }
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
-                      bg_color="black", text_color="white", background_video=None,
+                      bg_color=(0,0,0,0), text_color="white", background_video=None,
                       background_image=None, full_size_background=False):
-    """Creates a text image with the specified text and styles."""
     if full_size_background:
         size = VIDEO_SIZE
 
     if background_video:
-        return None  # Retornamos None para indicar que usaremos video de fondo
+        return None
         
-    if background_image:
-        try:
-            img = Image.open(background_image).convert("RGB")
-            img = img.resize(size)  # Método simple de redimensionamiento
-        except Exception as e:
-            logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
-            img = Image.new('RGB', size, bg_color)
-    else:
-        img = Image.new('RGB', size, bg_color)
-
-
+    # Creamos una imagen con canal alfa (RGBA)
+    img = Image.new('RGBA', size, (0,0,0,0))  # Fondo completamente transparente
     draw = ImageDraw.Draw(img)
+    
     try:
         font = ImageFont.truetype(FONT_PATH, font_size)
     except Exception as e:
@@ -118,6 +109,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         draw.text((x, y), line, font=font, fill=text_color)
         y += line_height
     return np.array(img)
+
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
     """Creates an image for the subscription message."""
     img = Image.new('RGB', size, (255, 0, 0))
