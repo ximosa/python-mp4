@@ -24,6 +24,8 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 TEMP_DIR = "temp"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Ajusta la ruta si es necesario
 DEFAULT_FONT_SIZE = 30
+DEFAULT_BG_COLOR = "black"
+DEFAULT_TEXT_COLOR = "white"
 #LINE_HEIGHT = 40 # Eliminamos LINE_HEIGHT como variable global
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
@@ -61,7 +63,7 @@ VOCES_DISPONIBLES = {
 }
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
-                      bg_color="black", text_color="white", background_image=None,
+                      bg_color=DEFAULT_BG_COLOR, text_color=DEFAULT_TEXT_COLOR, background_image=None,
                       stretch_background=False, full_size_background=False):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
@@ -162,9 +164,12 @@ def create_background_clip(background_path, size, duration):
                 clip = clip.resize(size)
                 return clip
             else:
-              # Es un video, carga el video sin audio
+              # Es un video, carga el video y muestra el primer frame
                 clip = VideoFileClip(background_path)
-                clip = clip.resize(size).set_duration(duration).loop()
+                first_frame = clip.get_frame(0)
+                clip.close()
+                clip = ImageClip(first_frame).set_duration(duration)
+                clip = clip.resize(size)
                 return clip
 
         except Exception as e:
@@ -173,7 +178,7 @@ def create_background_clip(background_path, size, duration):
     else:
       return ColorClip(size, color=(0,0,0)).set_duration(duration)
 
-def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
+def create_simple_video(texto, nombre_salida, voz, logo_url,
                  background_file, stretch_background):
     archivos_temp = []
     clips_audio = []
@@ -241,8 +246,8 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
-            text_img = create_text_image(segmento, font_size=font_size,
-                                    bg_color="white", text_color=text_color,
+            text_img = create_text_image(segmento, font_size=DEFAULT_FONT_SIZE,
+                                    bg_color=DEFAULT_BG_COLOR, text_color=DEFAULT_TEXT_COLOR,
                                     full_size_background=True)
             txt_clip = (ImageClip(text_img)
                       .set_start(tiempo_acumulado)
@@ -340,9 +345,6 @@ def main():
     with st.sidebar:
         st.header("Configuración del Video")
         voz_seleccionada = st.selectbox("Selecciona la voz", options=list(VOCES_DISPONIBLES.keys()))
-        font_size = st.slider("Tamaño de la fuente", min_value=10, max_value=100, value=DEFAULT_FONT_SIZE)
-        bg_color = st.color_picker("Color de fondo", value="#000000")
-        text_color = st.color_picker("Color de texto", value="#ffffff")
         background_file = st.file_uploader("Imagen o Video de fondo (opcional)", type=["png", "jpg", "jpeg", "webp", "mp4", "mov"])
         stretch_background = st.checkbox("Estirar imagen de fondo", value=False)
 
@@ -364,7 +366,7 @@ def main():
                     background_path = tmp_file.name
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        font_size, bg_color, text_color, background_path, stretch_background)
+                                                        background_path, stretch_background)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
