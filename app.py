@@ -63,7 +63,7 @@ def create_text_overlay(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                         bg_alpha=BG_ALPHA):
     """Crea una imagen de texto con el texto y estilos especificados."""
     if full_size_background:
-        size = VIDEO_SIZE
+        size = VIDEO_SIZE # Usar VIDEO_SIZE si full_size_background es True
 
     try:
         if background_video:
@@ -313,32 +313,36 @@ class VideoGenerator:
         return duration
 
     def _create_text_clip(self, segment, start_time, duration):
-      """Crea un clip de video con el texto superpuesto y el video de fondo."""
-      if self.background_video:
-          video_clip = self.background_video.subclip(0, duration).set_position('center').set_audio(None)
-      else:
-          video_clip = ColorClip(VIDEO_SIZE, color="black", duration=duration).set_audio(None)
-
-      text_img = create_text_overlay(
-          segment,
-          font_size=self.font_size,
-          text_color=TEXT_COLOR,
-          stretch_background=self.stretch_background,
-          full_size_background=True,
-          bg_alpha=BG_ALPHA
-      )
-      
-      txt_clip = (
-          ImageClip(text_img)
-          .set_start(0)
-          .set_duration(duration)
-          .set_position('center')
-      )
-
-      final_clip = CompositeVideoClip([video_clip, txt_clip])
-      final_clip = final_clip.set_start(start_time)
-
-      return final_clip
+        """Crea un clip de video con el texto superpuesto y el video de fondo."""
+        if self.background_video:
+            # Usar el video de fondo sin cerrarlo
+            video_clip = self.background_video.subclip(0, duration).set_position('center').set_audio(None)
+        else:
+            video_clip = ColorClip(VIDEO_SIZE, color="black", duration=duration).set_audio(None)
+        
+        # Usar VIDEO_SIZE para el overlay
+        text_img = create_text_overlay(
+            segment,
+            size=VIDEO_SIZE,  # Cambiar a VIDEO_SIZE
+            font_size=self.font_size,
+            text_color=TEXT_COLOR,
+            background_video=self.background_video,  # Pasar el video de fondo
+            stretch_background=self.stretch_background,
+            full_size_background=True,  # Mantener en True
+            bg_alpha=BG_ALPHA
+        )
+        
+        txt_clip = (
+            ImageClip(text_img)
+            .set_start(0)
+            .set_duration(duration)
+            .set_position('center')
+        )
+        
+        final_clip = CompositeVideoClip([video_clip, txt_clip])
+        final_clip = final_clip.set_start(start_time)
+        
+        return final_clip
 
     def _create_subscription_clip(self, start_time):
         """Crea el clip de suscripción."""
@@ -437,23 +441,24 @@ def main():
             f.write(video_bytes)
         st.session_state['bg_video_path'] = temp_video_path
 
-        # Mover la lógica de la previsualización aquí:
+        #  Lógica de la previsualización:
         if texto:
             try:
+                # Usar el video temporal sin cerrarlo
                 bg_video = VideoFileClip(st.session_state['bg_video_path'])
 
                 image_data = create_text_overlay(
                     text=texto,
+                    size=IMAGE_SIZE_TEXT, # Usar IMAGE_SIZE_TEXT para la previsualización
                     font_size=DEFAULT_FONT_SIZE,
                     text_color=TEXT_COLOR,
-                    background_video=bg_video,
+                    background_video=bg_video, # Pasar el video
                     stretch_background=st.session_state['stretch_background'],
-                    full_size_background=True,
+                    full_size_background=False, # Usar False para la previsualización
                     bg_alpha=BG_ALPHA
                 )
                 st.image(image_data, caption="Previsualización del texto", use_container_width=True)
-
-                bg_video.close()
+                # No cerrar el video aquí bg_video.close()
             except Exception as e:
                 st.error(f"Error al generar la previsualización: {str(e)}")
     else:
