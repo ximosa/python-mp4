@@ -5,7 +5,7 @@ import logging
 import re
 import json
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, TextClip, CompositeVideoClip, VideoFileClip, ColorClip
+from moviepy.editor import AudioFileClip, ImageClip, TextClip, CompositeVideoClip, VideoFileClip, ColorClip, concatenate_videoclips
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import requests
@@ -225,7 +225,7 @@ class VideoGenerator:
             out.write(response.audio_content)
         return temp_filename
 
-    def _cleanup(self):
+    def _cleanup(self, video_final=None):
         """Limpia los archivos temporales y cierra los clips."""
         for clip in self.video_clips:
             try:
@@ -237,6 +237,13 @@ class VideoGenerator:
                 clip.close()
             except Exception as e:
                 logging.error(f"Error al cerrar clip: {str(e)}")
+
+        if video_final:
+            try:
+                video_final.close()
+            except Exception as e:
+                logging.error(f"Error al cerrar video_final: {str(e)}")
+                
         gc.collect()
 
 # --- Interfaz de Streamlit ---
