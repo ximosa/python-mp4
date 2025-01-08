@@ -68,19 +68,15 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     if background_video:
         return None  # Retornamos None para indicar que usaremos video de fondo
         
-    if background_image:
-        try:
-            img = Image.open(background_image).convert("RGB")
-            if stretch_background:
-                img = img.resize(size)
-            else:
-                img.thumbnail(size)
-                new_img = Image.new('RGB', size, bg_color)
-                new_img.paste(img, ((size[0]-img.width)//2, (size[1]-img.height)//2))
-                img = new_img
-        except Exception as e:
-            logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
-            img = Image.new('RGB', size, bg_color)
+   if background_image:
+    try:
+        img = Image.open(background_image).convert("RGB")
+        img = img.resize(size)  # Siempre redimensionamos al tamaño completo
+        
+    except Exception as e:
+        logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
+        img = Image.new('RGB', size, bg_color)
+
     else:
         img = Image.new('RGB', size, bg_color)
 
@@ -331,8 +327,6 @@ def main():
         else:
             background_image = None
             background_video = None
-            
-        stretch_background = st.checkbox("Estirar fondo", value=False)
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
     
