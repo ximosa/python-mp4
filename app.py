@@ -90,7 +90,8 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
             clips = [video_clip] * repetitions
             video_clip = concatenate_videoclips(clips).subclip(0, video_duration)
             
-        return video_clip.to_frame()
+        
+        return video_clip
         
       except Exception as e:
             logging.error(f"Error al cargar video de fondo: {str(e)}, usando fondo {bg_color}.")
@@ -249,25 +250,34 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
-            text_img = create_text_image(segmento,
+            bg_content = create_text_image(segmento,
                                     background_image=background_image,
                                     stretch_background=stretch_background,
                                     full_size_background=True,
                                     background_video=background_video,
                                     video_duration=duracion)
             
-            if isinstance(text_img, np.ndarray):
-              txt_clip = (ImageClip(text_img)
+            if isinstance(bg_content, VideoFileClip):
+              txt_clip = (ImageClip(create_text_image(segmento,
+                                    background_image=None,
+                                    stretch_background=stretch_background,
+                                    full_size_background=True))
+                    .set_start(tiempo_acumulado)
+                    .set_duration(duracion)
+                    .set_position('center'))
+              
+              bg_clip = bg_content.set_start(tiempo_acumulado).set_duration(duracion)
+              video_segment =  bg_clip.set_mask(txt_clip.to_mask())
+                
+            else:
+              txt_clip = (ImageClip(bg_content)
                       .set_start(tiempo_acumulado)
                       .set_duration(duracion)
                       .set_position('center'))
-            else:
-                txt_clip = (ImageClip(text_img)
-                        .set_start(tiempo_acumulado)
-                        .set_duration(duracion)
-                        .set_position('center'))
+              video_segment = txt_clip
               
-            video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
+            
+            video_segment = video_segment.set_audio(audio_clip.set_start(tiempo_acumulado))
             clips_finales.append(video_segment)
             
             tiempo_acumulado += duracion
