@@ -70,7 +70,6 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         size = VIDEO_SIZE
     
     if background_video:
-      
         try:
             logging.info(f"Intentando cargar video de fondo: {background_video}")
             video_clip = VideoFileClip(background_video)
@@ -101,7 +100,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar video de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-            return np.array(img)
+            return ImageClip(img, duration=video_duration)
     
     elif background_image:
         try:
@@ -109,19 +108,17 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
             if stretch_background:
                 img = img.resize(size)
             else:
-              img.thumbnail(size)
-              new_img = Image.new('RGB', size, bg_color)
-              new_img.paste(img, ((size[0]-img.width)//2, (size[1]-img.height)//2))
-              img = new_img
+                img.thumbnail(size)
+                new_img = Image.new('RGB', size, bg_color)
+                new_img.paste(img, ((size[0]-img.width)//2, (size[1]-img.height)//2))
+                img = new_img
         except Exception as e:
             logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-        return np.array(img)
+        return ImageClip(img, duration=video_duration)
     else:
         img = Image.new('RGB', size, bg_color)
-        return np.array(img)
-
-    
+        return ImageClip(img, duration=video_duration)
 
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
     """Creates an image for the subscription message."""
