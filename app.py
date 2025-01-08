@@ -279,10 +279,11 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
                   logging.info("Clip de fondo creado")
                   video_segment =  bg_clip.set_mask(txt_clip.to_mask(True))
                   logging.info("Video de fondo aplicado con mascara")
+                  
                 except Exception as e:
-                  logging.error(f"Error al crear máscara o aplicar al video: {str(e)}")
-                  continue
-                
+                    logging.error(f"Error al crear máscara o aplicar al video: {str(e)}")
+                    continue
+            
             else:
               logging.info("Fondo de texto: Imagen")
               txt_clip = (ImageClip(bg_content)
@@ -334,7 +335,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
             try:
               clip.close()
             except:
-                pass
+              pass
             
         for temp_file in archivos_temp:
             try:
