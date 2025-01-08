@@ -5,10 +5,12 @@ import logging
 import time
 from google.cloud import texttospeech
 from moviepy.editor import AudioFileClip, ImageClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip, ColorClip
-from PIL import Image, ImageDraw, ImageFontimport numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 import tempfile
 import requests
 from io import BytesIO
+
 
 # Configuración para nueva versión de Pillow
 import PIL.Image
