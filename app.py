@@ -11,15 +11,16 @@ import requests
 from io import BytesIO
 import concurrent.futures
 import gc
+import tempfile
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constantes
-TEMP_DIR = "temp"
+TEMP_DIR = tempfile.mkdtemp()
 FONT_PATH = "arial.ttf"  # Asegúrate de que la fuente esté disponible o súbela a tu proyecto
-DEFAULT_FONT_SIZE = 30
-LINE_HEIGHT = 40
+DEFAULT_FONT_SIZE = 45 # Tamaño de fuente por defecto
+LINE_HEIGHT = 50
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
 AUDIO_CODEC = 'aac'
@@ -63,7 +64,7 @@ def create_text_overlay(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     """Crea una imagen de texto con el texto y estilos especificados."""
     if full_size_background:
         size = VIDEO_SIZE
-    
+
     try:
         if background_video:
             bg_image = background_video.get_frame(0)
@@ -80,7 +81,7 @@ def create_text_overlay(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     except Exception as e:
         logging.error(f"Error al cargar el video de fondo o crear el fondo negro: {str(e)}")
         bg_image = Image.new('RGB', size, "black")
-    
+
     img = bg_image.copy()
     draw = ImageDraw.Draw(img, 'RGBA')
 
@@ -89,7 +90,7 @@ def create_text_overlay(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     except Exception as e:
         logging.error(f"Error al cargar la fuente, usando la fuente predeterminada: {str(e)}")
         font = ImageFont.load_default()
-    
+
     words = text.split()
     lines = []
     current_line = []
@@ -224,8 +225,22 @@ class VideoGenerator:
             self.video_clips.append(subscribe_clip)
             self.video_final = concatenate_videoclips(self.video_clips, method="compose")
 
-            self._write_video_file(self.video_final)
+            # Escribir el video en un archivo temporal
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmpfile:
+                self.output_filename = tmpfile.name
+                self._write_video_file(self.video_final)
+                
             st.success("Video generado exitosamente")
+
+            # Mostrar botón de descarga
+            with open(self.output_filename, "rb") as file:
+                st.download_button(
+                    label="Descargar Video",
+                    data=file,
+                    file_name="video_generado.mp4",
+                    mime="video/mp4"
+                )
+
         except Exception as e:
             logging.error(f"Error en la creación de video: {str(e)}")
             st.error(f"Error en la creación de video: {str(e)}")
@@ -389,7 +404,6 @@ def main():
         st.session_state['initialized'] = True
         st.session_state['progress'] = 0
         st.session_state['total_segments'] = 0
-        st.session_state['font_size'] = DEFAULT_FONT_SIZE
         st.session_state['stretch_background'] = False
         st.session_state['bg_video_path'] = ""
 
@@ -403,14 +417,11 @@ def main():
     # Selección de voz
     selected_voice = st.selectbox("Selecciona una voz:", list(VOCES_DISPONIBLES.keys()))
 
-    # Carpeta de destino
-    output_folder = "videos"  # Carpeta fija para Streamlit
-
-    # Nombre del video
-    video_name = st.text_input("Nombre del video (sin extensión):", "video_generado")
+    # Nombre del video (ya no se usa una carpeta de destino)
+    # video_name = st.text_input("Nombre del video (sin extensión):", "video_generado")
 
     # Opciones de Personalización
-    st.session_state['font_size'] = st.number_input("Tamaño de fuente:", min_value=10, max_value=100, value=st.session_state['font_size'])
+    # Se elimina la selección del tamaño de la fuente
     st.session_state['stretch_background'] = st.checkbox("Estirar fondo", value=st.session_state['stretch_background'])
 
     # Crear la carpeta temp si no existe.
@@ -442,7 +453,7 @@ def main():
 
             image_data = create_text_overlay(
                 text=texto,
-                font_size=st.session_state['font_size'],
+                font_size=DEFAULT_FONT_SIZE,
                 text_color=TEXT_COLOR,
                 background_video=bg_video,
                 stretch_background=st.session_state['stretch_background'],
@@ -462,19 +473,15 @@ def main():
             st.warning("Por favor selecciona un archivo de texto.")
             return
 
-        # Sanitiza el nombre del archivo
-        nombre_archivo_sanitizado = sanitize_filename(video_name)
-        # Construye la ruta de salida completa
-        nombre_salida = os.path.join(output_folder, f"{nombre_archivo_sanitizado}.mp4")
-
+        # El video se guarda en un archivo temporal y luego se ofrece para descarga
         logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
 
         video_generator = VideoGenerator(
             texto,
-            nombre_salida,
+            "",  # Ya no se necesita un nombre de archivo de salida
             selected_voice,
             logo_url,
-            st.session_state['font_size'],
+            DEFAULT_FONT_SIZE,
             st.session_state['bg_video_path'],
             st.session_state['stretch_background']
         )
