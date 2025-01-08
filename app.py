@@ -19,14 +19,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Constantes
 TEMP_DIR = tempfile.mkdtemp()
 FONT_PATH = "arial.ttf"  # Asegúrate de que la fuente esté disponible o súbela a tu proyecto
-DEFAULT_FONT_SIZE = 45 # Tamaño de fuente por defecto
-LINE_HEIGHT = 50
+DEFAULT_FONT_SIZE = 70  # Aumenté el tamaño de fuente para mejor legibilidad
+LINE_HEIGHT = 80 # Aumente la altura de la línea
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
 AUDIO_CODEC = 'aac'
 VIDEO_PRESET = 'ultrafast'
 VIDEO_THREADS = 2
-IMAGE_SIZE_TEXT = (1280, 360)
+IMAGE_SIZE_TEXT = (1280, 560) # Aumente el tamaño de la imagen de texto
 IMAGE_SIZE_SUBSCRIPTION = (1280, 720)
 SUBSCRIPTION_DURATION = 5
 LOGO_SIZE = (100, 100)
@@ -86,7 +86,7 @@ def create_text_overlay(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
     draw = ImageDraw.Draw(img, 'RGBA')
 
     try:
-        font = ImageFont.truetype(FONT_PATH, font_size)
+        font = ImageFont.truetype(FONT_PATH, font_size) # Usar font_size aquí
     except Exception as e:
         logging.error(f"Error al cargar la fuente, usando la fuente predeterminada: {str(e)}")
         font = ImageFont.load_default()
@@ -272,7 +272,7 @@ class VideoGenerator:
                 voice=voice,
                 audio_config=audio_config
             )
-            temp_filename = os.path.join(TEMP_DIR, f"temp_audio_{index}.mp3")
+            temp_filename = os.path.join(TEMP_DIR, f"temp_audio_{index}.mp4")
             self.temp_files.append(temp_filename)
 
             with open(temp_filename, "wb") as out:
@@ -300,7 +300,7 @@ class VideoGenerator:
             voice=voice,
             audio_config=audio_config
         )
-        temp_filename = os.path.join(TEMP_DIR, f"temp_duration_check.mp3")
+        temp_filename = os.path.join(TEMP_DIR, f"temp_duration_check.mp4")
         self.temp_files.append(temp_filename)
         with open(temp_filename, "wb") as out:
             out.write(response.audio_content)
@@ -436,32 +436,28 @@ def main():
         with open(temp_video_path, "wb") as f:
             f.write(video_bytes)
         st.session_state['bg_video_path'] = temp_video_path
+
+        # Mover la lógica de la previsualización aquí:
+        if texto:
+            try:
+                bg_video = VideoFileClip(st.session_state['bg_video_path'])
+
+                image_data = create_text_overlay(
+                    text=texto,
+                    font_size=DEFAULT_FONT_SIZE,
+                    text_color=TEXT_COLOR,
+                    background_video=bg_video,
+                    stretch_background=st.session_state['stretch_background'],
+                    full_size_background=True,
+                    bg_alpha=BG_ALPHA
+                )
+                st.image(image_data, caption="Previsualización del texto", use_container_width=True)
+
+                bg_video.close()
+            except Exception as e:
+                st.error(f"Error al generar la previsualización: {str(e)}")
     else:
         st.session_state['bg_video_path'] = ""
-
-    # Previsualización
-    if texto:
-        try:
-            if st.session_state['bg_video_path']:
-                bg_video = VideoFileClip(st.session_state['bg_video_path'])
-            else:
-                bg_video = None
-
-            image_data = create_text_overlay(
-                text=texto,
-                font_size=DEFAULT_FONT_SIZE,
-                text_color=TEXT_COLOR,
-                background_video=bg_video,
-                stretch_background=st.session_state['stretch_background'],
-                full_size_background=True,
-                bg_alpha=BG_ALPHA
-            )
-            st.image(image_data, caption="Previsualización del texto", use_container_width=True) # Usar use_container_width en lugar de use_column_width
-
-            if bg_video:
-                bg_video.close()
-        except Exception as e:
-            st.error(f"Error al generar la previsualización: {str(e)}")
 
     # Generar video
     if st.button("Generar Video"):
