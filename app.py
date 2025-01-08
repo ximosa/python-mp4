@@ -145,7 +145,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
 def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
-                 background_video, background_image, stretch_background):
+                 background_video, background_image):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -213,8 +213,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
             
             if background_video:
                 bg_clip = VideoFileClip(background_video)
-                if stretch_background:
-                    bg_clip = bg_clip.resize(VIDEO_SIZE)
+                bg_clip = bg_clip.resize(VIDEO_SIZE)
                 
                 bg_clip = bg_clip.loop(duration=duracion)
                 
@@ -230,7 +229,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                 text_img = create_text_image(segmento, font_size=font_size,
                                         bg_color=bg_color, text_color=text_color,
                                         background_image=background_image,
-                                        stretch_background=stretch_background,
                                         full_size_background=True)
                 txt_clip = (ImageClip(text_img)
                           .set_start(tiempo_acumulado)
