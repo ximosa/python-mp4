@@ -110,7 +110,7 @@ def create_subscription_image(logo_url,size=(1280, 720), font_size=60):
 def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_path=None):
     archivos_temp = []
     clips_audio = []
-    clips_finales = []
+    clips_compuestos = []
     
     try:
         logging.info("Iniciando proceso de creación de video...")
@@ -130,7 +130,12 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
             segmento_actual = frase
         segmentos_texto.append(segmento_actual.strip())
         
-        # Procesar cada segmento de texto y crear audio
+        # Crear el video de fondo en bucle
+        if background_video_path:
+            background_video_clip = VideoFileClip(background_video_path, audio = False)
+        else:
+             background_video_clip = None
+             
         for i, segmento in enumerate(segmentos_texto):
             logging.info(f"Procesando segmento {i+1} de {len(segmentos_texto)}")
             
@@ -180,24 +185,19 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
                       .set_start(0)
                       .set_duration(duracion)
                       .set_position('center'))
-
             
-            clips_finales.append(txt_clip.set_audio(audio_clip.set_start(0)).set_start(tiempo_acumulado))
+            if background_video_clip:
+                background_clip = background_video_clip.loop(duration = duracion)
+                final_clip = CompositeVideoClip([background_clip, txt_clip]).set_audio(audio_clip.set_start(0)).set_start(tiempo_acumulado)
+            else:
+                background_clip = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=duracion)
+                final_clip = CompositeVideoClip([background_clip, txt_clip]).set_audio(audio_clip.set_start(0)).set_start(tiempo_acumulado)
+            
+            clips_compuestos.append(final_clip)
             
             tiempo_acumulado += duracion
             time.sleep(0.2)
 
-        # Calcular la duración total del video basado en el audio generado
-        duracion_total_audio = tiempo_acumulado
-        
-        # Crear el video de fondo
-        if background_video_path:
-          background_video_clip = VideoFileClip(background_video_path, audio = False)
-          background_clip = background_video_clip.loop(duration=duracion_total_audio)
-        else:
-          background_clip = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=duracion_total_audio)
-
-        
         # Añadir clip de suscripción
         subscribe_img = create_subscription_image(logo_url)
         duracion_subscribe = 5
@@ -207,15 +207,17 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
                         .set_duration(duracion_subscribe)
                         .set_position('center'))
         
-        clips_finales.append(subscribe_clip.set_start(duracion_total_audio))
-        
-        #Unir el fondo y las capas
-        
-        final_clips_with_bg = []
-        for clip in clips_finales:
-          final_clips_with_bg.append(CompositeVideoClip([background_clip, clip]))
-          
-        video_final = concatenate_videoclips(final_clips_with_bg, method="compose")
+        if background_video_clip:
+            background_subscribe_clip = background_video_clip.loop(duration = duracion_subscribe)
+            final_subscribe_clip = CompositeVideoClip([background_subscribe_clip, subscribe_clip]).set_start(tiempo_acumulado)
+        else:
+            background_subscribe_clip = ColorClip(size=(1280, 720), color=(0, 0, 0), duration=duracion_subscribe)
+            final_subscribe_clip = CompositeVideoClip([background_subscribe_clip, subscribe_clip]).set_start(tiempo_acumulado)
+
+
+        clips_compuestos.append(final_subscribe_clip)
+            
+        video_final = concatenate_videoclips(clips_compuestos, method="compose")
 
         video_final.write_videofile(
             nombre_salida,
@@ -231,13 +233,11 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
         for clip in clips_audio:
             clip.close()
         
-        for clip in clips_finales:
+        for clip in clips_compuestos:
             clip.close()
-        
-        if background_video_path:
+            
+        if background_video_clip:
           background_video_clip.close()
-        
-        background_clip.close()
 
         for temp_file in archivos_temp:
             try:
@@ -257,21 +257,17 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, background_video_pa
             except:
                 pass
                 
-        for clip in clips_finales:
+        for clip in clips_compuestos:
             try:
                 clip.close()
             except:
                 pass
         
-        if background_video_path:
+        if background_video_clip:
             try:
                 background_video_clip.close()
             except:
                 pass
-        try:
-            background_clip.close()
-        except:
-            pass
                 
         for temp_file in archivos_temp:
             try:
