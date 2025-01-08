@@ -412,6 +412,7 @@ def main():
                                                         img_path, stretch_background, video_path)
                 if success:
                   st.success(message)
+                  # Mostrar el video utilizando st.video
                   st.video(nombre_salida_completo)
                   with open(nombre_salida_completo, 'rb') as file:
                     st.download_button(label="Descargar video",data=file,file_name=nombre_salida_completo)
