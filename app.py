@@ -10,12 +10,15 @@ import numpy as np
 import tempfile
 import requests
 from io import BytesIO
-from moviepy.config import change_settings
 
-# Configuración de moviepy para evitar ANTIALIAS
-change_settings({"IMAGEMAGICK_BINARY": None})
+# Configuración para nueva versión de Pillow
+import PIL.Image
+def ANTIALIAS():
+    return PIL.Image.Resampling.LANCZOS
+PIL.Image.ANTIALIAS = ANTIALIAS()
 
 logging.basicConfig(level=logging.INFO)
+
 
 # Cargar credenciales de GCP desde secrets
 credentials = dict(st.secrets.gcp_service_account)
