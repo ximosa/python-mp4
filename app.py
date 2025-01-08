@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, CompositeVideoClip, VideoFileClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -24,7 +24,6 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 TEMP_DIR = "temp"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Ajusta la ruta si es necesario
 DEFAULT_FONT_SIZE = 30
-#LINE_HEIGHT = 40 # Eliminamos LINE_HEIGHT como variable global
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
 AUDIO_CODEC = 'aac'
@@ -63,7 +62,6 @@ VOCES_DISPONIBLES = {
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color="black", text_color="white", background_image=None,
                       stretch_background=False, full_size_background=False):
-    """Creates a text image with the specified text and styles."""
     if full_size_background:
       size = VIDEO_SIZE
 
@@ -119,7 +117,6 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
 
 
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
-    """Creates an image for the subscription message."""
     img = Image.new('RGB', size, (255, 0, 0))
     draw = ImageDraw.Draw(img)
     try:
@@ -153,7 +150,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     return np.array(img)
     
 def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color, text_color,
-                 background_image, stretch_background):
+                 background_image, stretch_background, background_video):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -249,6 +246,11 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         video_final = concatenate_videoclips(clips_finales, method="compose")
         
+        if background_video:
+            video_fondo = VideoFileClip(background_video)
+            video_fondo = video_fondo.subclip(0, tiempo_acumulado + duracion_subscribe)
+            video_final = CompositeVideoClip([video_fondo, video_final])
+
         video_final.write_videofile(
             nombre_salida,
             fps=24,
@@ -300,12 +302,11 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         return False, str(e)
 
-
 def main():
     st.title("Creador de Videos Automático")
     
     uploaded_file = st.file_uploader("Carga un archivo de texto", type="txt")
-    
+    background_video = st.file_uploader("Cargar video de fondo (opcional)", type=["mp4", "mov", "avi"])
     
     with st.sidebar:
         st.header("Configuración del Video")
@@ -316,8 +317,7 @@ def main():
         background_image = st.file_uploader("Imagen de fondo (opcional)", type=["png", "jpg", "jpeg", "webp"])
         stretch_background = st.checkbox("Estirar imagen de fondo", value=False)
 
-
-    logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
+    logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi5300RBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
     
     if uploaded_file:
         texto = uploaded_file.read().decode("utf-8")
@@ -327,7 +327,6 @@ def main():
             with st.spinner('Generando video...'):
                 nombre_salida_completo = f"{nombre_salida}.mp4"
                 
-                
                 img_path = None
                 if background_image:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_image.name)[1]) as tmp_file:
@@ -335,7 +334,7 @@ def main():
                         img_path = tmp_file.name
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        font_size, bg_color, text_color, img_path, stretch_background)
+                                                        font_size, bg_color, text_color, img_path, stretch_background, background_video)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
@@ -354,7 +353,6 @@ def main():
             st.markdown(f'<a href="https://www.youtube.com/upload" target="_blank">Subir video a YouTube</a>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    # Inicializar session state
     if "video_path" not in st.session_state:
         st.session_state.video_path = None
     main()
