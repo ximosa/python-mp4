@@ -14,6 +14,30 @@ from io import BytesIO
 logging.basicConfig(level=logging.INFO)
 
 # Other constants and configurations remain the same
+DEFAULT_FONT_SIZE = 30
+FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+VOCES_DISPONIBLES = {
+    'es-ES-Standard-A': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Standard-B': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Standard-C': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Standard-D': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Standard-E': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Standard-F': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Neural2-A': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Neural2-B': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Neural2-C': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Neural2-D': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Neural2-E': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Neural2-F': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Polyglot-1': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Studio-C': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Studio-F': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Wavenet-B': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Wavenet-C': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Wavenet-D': texttospeech.SsmlVoiceGender.FEMALE,
+    'es-ES-Wavenet-E': texttospeech.SsmlVoiceGender.MALE,
+    'es-ES-Wavenet-F': texttospeech.SsmlVoiceGender.FEMALE,
+}
 
 def create_text_video(text, font_size=DEFAULT_FONT_SIZE, text_color="white", background_video=None):
     """Creates a video clip with the specified text and background video."""
