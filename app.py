@@ -65,7 +65,7 @@ VOCES_DISPONIBLES = {
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE, full_size_background=False):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
-      size = VIDEO_SIZE
+        size = VIDEO_SIZE
 
     img = Image.new('RGBA', size, TEXT_BG_COLOR)
     draw = ImageDraw.Draw(img)
@@ -137,7 +137,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     draw.text((x2, y2), text2, font=font2, fill="white")
     return np.array(img)
     
-def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
+def create_simple_video(texto, nombre_salida, voz, logo_url,
                  background_media):
     archivos_temp = []
     clips_audio = []
@@ -206,9 +206,9 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
             clips_audio.append(audio_clip)
             duracion = audio_clip.duration
             
-            img_text = create_text_image(segmento, font_size=font_size, full_size_background=True)
+            img_text = create_text_image(segmento, full_size_background=True)
             text_clip = ImageClip(img_text).set_start(tiempo_acumulado).set_duration(duracion).set_position('center').set_audio(audio_clip.set_start(tiempo_acumulado))
-            
+
             if background_media:
               with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
                   tmp_file.write(background_media.read())
@@ -222,18 +222,20 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
                       else:
                           img_clip = ImageClip(media_path).set_start(tiempo_acumulado).set_duration(duracion).set_position('center')
                           clips_finales.append(img_clip)
+
                       temp_video_backgrounds.append(media_path)
                       clips_finales.append(text_clip)
+
                   except Exception as e:
                       logging.error(f"Error al procesar video o imagen de fondo: {str(e)}")
                       clips_finales.append(text_clip)
                   try:
-                     os.remove(media_path)
+                      os.remove(media_path)
                   except:
-                     pass
+                      pass
             else:
                 clips_finales.append(text_clip)
-            
+
             tiempo_acumulado += duracion
             time.sleep(0.2)
 
@@ -277,8 +279,8 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
         for temp_file in temp_video_backgrounds:
             try:
                 if os.path.exists(temp_file):
-                    os.close(os.open(temp_file, os.O_RDONLY))
-                    os.remove(temp_file)
+                   os.close(os.open(temp_file, os.O_RDONLY))
+                   os.remove(temp_file)
             except:
                 pass
                 
@@ -316,7 +318,6 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
         
         return False, str(e)
 
-
 def main():
     st.title("Creador de Videos Automático")
     
@@ -326,7 +327,6 @@ def main():
     with st.sidebar:
         st.header("Configuración del Video")
         voz_seleccionada = st.selectbox("Selecciona la voz", options=list(VOCES_DISPONIBLES.keys()))
-        font_size = st.slider("Tamaño de la fuente", min_value=10, max_value=100, value=DEFAULT_FONT_SIZE)
         background_media = st.file_uploader("Imagen o video de fondo (opcional)", type=["png", "jpg", "jpeg", "webp", "mp4", "mov", "avi", "mkv"])
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
@@ -339,10 +339,7 @@ def main():
             with st.spinner('Generando video...'):
                 nombre_salida_completo = f"{nombre_salida}.mp4"
                 
-                
-                
-                success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        font_size, background_media)
+                success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url, DEFAULT_FONT_SIZE, background_media)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
