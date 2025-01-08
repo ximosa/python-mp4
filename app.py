@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -208,33 +208,36 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
                                     bg_color=bg_color, text_color=text_color, full_size_background=True)
             text_clip = ImageClip(img_text).set_start(tiempo_acumulado).set_duration(duracion).set_position('center').set_audio(audio_clip.set_start(tiempo_acumulado))
 
-            video_clip = None
             if background_media:
-               with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
+              with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
                   tmp_file.write(background_media.read())
                   media_path = tmp_file.name
                   try:
-                       if media_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
+                      if media_path.lower().endswith(('.mp4', '.mov', '.avi', '.mkv')):
                           video_clip = VideoFileClip(media_path)
-                          if stretch_background:
-                            video_clip = video_clip.resize(VIDEO_SIZE)
-                          else:
-                            video_clip = video_clip.resize(height=VIDEO_SIZE[1])
+                          video_clip = video_clip.resize(height=VIDEO_SIZE[1])
                           video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
-                          clips_finales.append(CompositeVideoClip([video_clip, text_clip]))
-                          temp_video_backgrounds.append(media_path)
-                       else:
-                         clips_finales.append(text_clip)
+                          clips_finales.append(video_clip)
+                          
+                      
+                      else:
+                          img_clip = ImageClip(media_path).set_start(tiempo_acumulado).set_duration(duracion).set_position('center')
+                          clips_finales.append(img_clip)
+                          
+                      
+                      clips_finales.append(text_clip)
+                      
+                      temp_video_backgrounds.append(media_path)
                   except Exception as e:
                       logging.error(f"Error al procesar video o imagen de fondo: {str(e)}")
                       clips_finales.append(text_clip)
                   try:
-                     os.remove(media_path)
+                    os.remove(media_path)
                   except:
-                     pass
+                      pass
             else:
                 clips_finales.append(text_clip)
-                
+            
             tiempo_acumulado += duracion
             time.sleep(0.2)
 
@@ -317,6 +320,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size, bg_color
         
         return False, str(e)
 
+
 def main():
     st.title("Creador de Videos Automático")
     
@@ -330,7 +334,6 @@ def main():
         bg_color = st.color_picker("Color de fondo", value="#000000")
         text_color = st.color_picker("Color de texto", value="#ffffff")
         background_media = st.file_uploader("Imagen o video de fondo (opcional)", type=["png", "jpg", "jpeg", "webp", "mp4", "mov", "avi", "mkv"])
-        stretch_background = st.checkbox("Estirar imagen/video de fondo", value=False)
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
     
@@ -345,7 +348,7 @@ def main():
                 
                 
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        font_size, bg_color, text_color, background_media, stretch_background)
+                                                        font_size, bg_color, text_color, background_media, False)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
