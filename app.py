@@ -100,7 +100,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar video de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-            return ImageClip(img, duration=video_duration)
+            return ImageClip(np.array(img), duration=video_duration)
     
     elif background_image:
         try:
@@ -115,10 +115,10 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-        return ImageClip(img, duration=video_duration)
+        return ImageClip(np.array(img), duration=video_duration)
     else:
         img = Image.new('RGB', size, bg_color)
-        return ImageClip(img, duration=video_duration)
+        return ImageClip(np.array(img), duration=video_duration)
 
 def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=60):
     """Creates an image for the subscription message."""
