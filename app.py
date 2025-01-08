@@ -24,6 +24,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 TEMP_DIR = "temp"
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Ajusta la ruta si es necesario
 DEFAULT_FONT_SIZE = 30
+#LINE_HEIGHT = 40 # Eliminamos LINE_HEIGHT como variable global
 VIDEO_FPS = 24
 VIDEO_CODEC = 'libx264'
 AUDIO_CODEC = 'aac'
@@ -36,7 +37,6 @@ LOGO_SIZE = (100, 100)
 VIDEO_SIZE = (1280, 720)  # Tamaño estándar del video
 TEXT_BG_COLOR = (0, 0, 0, 128)  # Negro con 50% de transparencia
 TEXT_COLOR = "white"
-
 
 # Configuración de voces
 VOCES_DISPONIBLES = {
@@ -74,7 +74,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE, f
     except Exception as e:
         logging.error(f"Error al cargar la fuente, usando la fuente predeterminada: {str(e)}")
         font = ImageFont.load_default()
-
+    
     # Calculamos la altura de línea en función del tamaño de la fuente.
     line_height = font_size * 1.5  # Aumentamos el factor a 1.5
 
@@ -208,7 +208,7 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
             
             img_text = create_text_image(segmento, font_size=font_size, full_size_background=True)
             text_clip = ImageClip(img_text).set_start(tiempo_acumulado).set_duration(duracion).set_position('center').set_audio(audio_clip.set_start(tiempo_acumulado))
-
+            
             if background_media:
               with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_media.name)[1]) as tmp_file:
                   tmp_file.write(background_media.read())
@@ -219,21 +219,18 @@ def create_simple_video(texto, nombre_salida, voz, logo_url, font_size,
                           video_clip = video_clip.resize(height=VIDEO_SIZE[1])
                           video_clip = video_clip.set_start(tiempo_acumulado).set_duration(duracion)
                           clips_finales.append(video_clip)
-                          clips_finales.append(text_clip)
-                          
                       else:
                           img_clip = ImageClip(media_path).set_start(tiempo_acumulado).set_duration(duracion).set_position('center')
                           clips_finales.append(img_clip)
-                          clips_finales.append(text_clip)
-                      
                       temp_video_backgrounds.append(media_path)
+                      clips_finales.append(text_clip)
                   except Exception as e:
                       logging.error(f"Error al procesar video o imagen de fondo: {str(e)}")
                       clips_finales.append(text_clip)
                   try:
-                    os.remove(media_path)
+                     os.remove(media_path)
                   except:
-                      pass
+                     pass
             else:
                 clips_finales.append(text_clip)
             
