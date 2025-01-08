@@ -101,7 +101,7 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar video de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-            return img
+            return np.array(img)
     
     elif background_image:
         try:
@@ -116,10 +116,10 @@ def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
         except Exception as e:
             logging.error(f"Error al cargar imagen de fondo: {str(e)}, usando fondo {bg_color}.")
             img = Image.new('RGB', size, bg_color)
-        return img
+        return np.array(img)
     else:
         img = Image.new('RGB', size, bg_color)
-        return img
+        return np.array(img)
 
     
 
