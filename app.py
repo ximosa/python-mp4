@@ -48,14 +48,12 @@ VOCES_DISPONIBLES = {
     'es-ES-Standard-C': texttospeech.SsmlVoiceGender.FEMALE
 }
 
-# Configuración de las credenciales de Google Cloud
-# Esto debería ser configurado como una variable de entorno en Streamlit
-# o como un secreto en los ajustes de tu aplicación en Streamlit
-try:
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = st.secrets["GOOGLE_APPLICATION_CREDENTIALS"]
-except KeyError:
-    st.error("Error: No se encontraron las credenciales de Google Cloud.")
-    st.stop()
+# Cargar credenciales de GCP desde secrets
+credentials = dict(st.secrets.gcp_service_account)
+with open("google_credentials.json", "w") as f:
+    json.dump(credentials, f)
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_credentials.json"
 
 def create_text_overlay(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE, line_height=LINE_HEIGHT,
                         text_color=TEXT_COLOR, background_video=None,
