@@ -164,7 +164,6 @@ def create_background_clip(background_path, size, duration):
             else:
               # Es un video, carga el video sin audio
                 clip = VideoFileClip(background_path)
-                clip = clip.without_audio()
                 clip = clip.resize(size).set_duration(duration).loop()
                 return clip
 
