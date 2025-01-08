@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from google.cloud import texttospeech
-from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips
+from moviepy.editor import AudioFileClip, ImageClip, concatenate_videoclips, VideoFileClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import tempfile
@@ -64,12 +64,39 @@ VOCES_DISPONIBLES = {
 
 def create_text_image(text, size=IMAGE_SIZE_TEXT, font_size=DEFAULT_FONT_SIZE,
                       bg_color=DEFAULT_BG_COLOR, text_color=DEFAULT_TEXT_COLOR, background_image=None,
-                      stretch_background=False, full_size_background=False):
+                      stretch_background=False, full_size_background=False, background_video=None, video_duration=0):
     """Creates a text image with the specified text and styles."""
     if full_size_background:
-      size = VIDEO_SIZE
-
-    if background_image:
+        size = VIDEO_SIZE
+    
+    if background_video:
+      
+      try:
+        video_clip = VideoFileClip(background_video)
+        
+        if stretch_background:
+          video_clip = video_clip.resize(size)
+        else:
+           video_clip = video_clip.resize(width=size[0])
+           video_clip = video_clip.set_position("center")
+        
+        duration = video_clip.duration
+        
+        if duration > video_duration:
+          video_clip = video_clip.subclip(0, video_duration)
+        
+        if duration < video_duration:
+            repetitions = int(video_duration / duration) + 1
+            clips = [video_clip] * repetitions
+            video_clip = concatenate_videoclips(clips).subclip(0, video_duration)
+            
+        return video_clip.to_frame()
+        
+      except Exception as e:
+            logging.error(f"Error al cargar video de fondo: {str(e)}, usando fondo {bg_color}.")
+            img = Image.new('RGB', size, bg_color)
+    
+    elif background_image:
         try:
             img = Image.open(background_image).convert("RGB")
             if stretch_background:
@@ -155,7 +182,7 @@ def create_subscription_image(logo_url, size=IMAGE_SIZE_SUBSCRIPTION, font_size=
     return np.array(img)
     
 def create_simple_video(texto, nombre_salida, voz, logo_url,
-                 background_image, stretch_background):
+                 background_image, stretch_background, background_video):
     archivos_temp = []
     clips_audio = []
     clips_finales = []
@@ -225,12 +252,21 @@ def create_simple_video(texto, nombre_salida, voz, logo_url,
             text_img = create_text_image(segmento,
                                     background_image=background_image,
                                     stretch_background=stretch_background,
-                                    full_size_background=True)
-            txt_clip = (ImageClip(text_img)
+                                    full_size_background=True,
+                                    background_video=background_video,
+                                    video_duration=duracion)
+            
+            if isinstance(text_img, np.ndarray):
+              txt_clip = (ImageClip(text_img)
                       .set_start(tiempo_acumulado)
                       .set_duration(duracion)
                       .set_position('center'))
-            
+            else:
+                txt_clip = (ImageClip(text_img)
+                        .set_start(tiempo_acumulado)
+                        .set_duration(duracion)
+                        .set_position('center'))
+              
             video_segment = txt_clip.set_audio(audio_clip.set_start(tiempo_acumulado))
             clips_finales.append(video_segment)
             
@@ -312,7 +348,8 @@ def main():
         st.header("Configuración del Video")
         voz_seleccionada = st.selectbox("Selecciona la voz", options=list(VOCES_DISPONIBLES.keys()))
         background_image = st.file_uploader("Imagen de fondo (opcional)", type=["png", "jpg", "jpeg", "webp"])
-        stretch_background = st.checkbox("Estirar imagen de fondo", value=False)
+        background_video = st.file_uploader("Video de fondo (opcional)", type=["mp4", "mov"])
+        stretch_background = st.checkbox("Estirar imagen/video de fondo", value=False)
 
 
     logo_url = "https://yt3.ggpht.com/pBI3iT87_fX91PGHS5gZtbQi53nuRBIvOsuc-Z-hXaE3GxyRQF8-vEIDYOzFz93dsKUEjoHEwQ=s176-c-k-c0x00ffffff-no-rj"
@@ -325,15 +362,20 @@ def main():
             with st.spinner('Generando video...'):
                 nombre_salida_completo = f"{nombre_salida}.mp4"
                 
-                
                 img_path = None
                 if background_image:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_image.name)[1]) as tmp_file:
                         tmp_file.write(background_image.read())
                         img_path = tmp_file.name
                 
+                video_path = None
+                if background_video:
+                   with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(background_video.name)[1]) as tmp_file:
+                     tmp_file.write(background_video.read())
+                     video_path = tmp_file.name
+                
                 success, message = create_simple_video(texto, nombre_salida_completo, voz_seleccionada, logo_url,
-                                                        img_path, stretch_background)
+                                                        img_path, stretch_background, video_path)
                 if success:
                   st.success(message)
                   st.video(nombre_salida_completo)
@@ -343,10 +385,14 @@ def main():
                   st.session_state.video_path = nombre_salida_completo
                   if img_path:
                     os.remove(img_path)
+                  if video_path:
+                     os.remove(video_path)
                 else:
                   st.error(f"Error al generar video: {message}")
                   if img_path:
                     os.remove(img_path)
+                  if video_path:
+                      os.remove(video_path)
 
         if st.session_state.get("video_path"):
             st.markdown(f'<a href="https://www.youtube.com/upload" target="_blank">Subir video a YouTube</a>', unsafe_allow_html=True)
