@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Constantes
 TEMP_DIR = "temp"
-FONT_PATH = "arial.ttf"  # Asegúrate de que la fuente esté disponible
+FONT_PATH = "arial.ttf"  # Asegúrate de que la fuente esté disponible o súbela a tu proyecto
 DEFAULT_FONT_SIZE = 30
 LINE_HEIGHT = 40
 VIDEO_FPS = 24
@@ -48,6 +48,7 @@ VOCES_DISPONIBLES = {
     'es-ES-Standard-C': texttospeech.SsmlVoiceGender.FEMALE
 }
 
+# Configuración de las credenciales de Google Cloud
 # Cargar credenciales de GCP desde secrets
 credentials = dict(st.secrets.gcp_service_account)
 with open("google_credentials.json", "w") as f:
@@ -412,12 +413,19 @@ def main():
     st.session_state['font_size'] = st.number_input("Tamaño de fuente:", min_value=10, max_value=100, value=st.session_state['font_size'])
     st.session_state['stretch_background'] = st.checkbox("Estirar fondo", value=st.session_state['stretch_background'])
 
+    # Crear la carpeta temp si no existe.
+    if not os.path.exists(TEMP_DIR):
+        os.makedirs(TEMP_DIR)
+
     # Selección de video de fondo (opcional)
     uploaded_video = st.file_uploader("Selecciona un video de fondo (opcional)", type=["mp4", "avi", "mov", "mkv"])
     if uploaded_video is not None:
         video_bytes = uploaded_video.read()
+        print(f"Tamaño del video subido: {len(video_bytes)} bytes")
         # Guardar el video temporalmente
         temp_video_path = os.path.join(TEMP_DIR, uploaded_video.name)
+
+        print(f"Intentando guardar el video en: {temp_video_path}")
         with open(temp_video_path, "wb") as f:
             f.write(video_bytes)
         st.session_state['bg_video_path'] = temp_video_path
